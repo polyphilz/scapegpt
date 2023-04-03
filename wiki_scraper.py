@@ -1,8 +1,8 @@
+import os
 import requests
 
 from bs4 import BeautifulSoup
 from collections import OrderedDict
-from datetime import datetime
 
 
 OSRS_WIKI_URL_BASE = "https://oldschool.runescape.wiki/w/"
@@ -70,6 +70,8 @@ def main():
         output = f"# {title}\n\n## Content\n\n{description}\n\n## Information\n\n{infobox_info}"
 
         # Save the output to a file
+        if not os.path.exists(SUMMARIES_DIR):
+            os.makedirs(SUMMARIES_DIR)
         filename = title.lower().replace(" ", "-").replace("'", "") + ".md"
         with open(SUMMARIES_DIR + filename, "w", encoding="utf-8") as f:
             f.write(output)
