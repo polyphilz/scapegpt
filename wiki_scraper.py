@@ -56,6 +56,8 @@ def main():
 
             row_label = cols[0].text.strip()
             row_content = cols[1].text.strip()
+            if row_label == "Map icon":
+                continue
             if row_label == "Released":
                 row_content = row_content.replace(" (Update)", "").replace(
                     "(Update)", ""
