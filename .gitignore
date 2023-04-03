@@ -11,3 +11,6 @@ cgi-bin/
 
 # Other
 *.log
+
+# Project-specific
+summaries/

@@ -66,11 +66,11 @@ def main():
         for info_label, info_content in info.items():
             infobox_info += f"{info_label}: {info_content}\n"
 
-        # Get the output
+        # Create the output via concatenation of the article subcomponent
         output = f"# {title}\n\n## Content\n\n{description}\n\n## Information\n\n{infobox_info}"
 
         # Save the output to a file
-        filename = title.lower().replace(" ", "-") + ".md"
+        filename = title.lower().replace(" ", "-").replace("'", "") + ".md"
         with open(SUMMARIES_DIR + filename, "w", encoding="utf-8") as f:
             f.write(output)
 
