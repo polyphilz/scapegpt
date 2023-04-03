@@ -1,0 +1,13 @@
+# OS's
+.DS_Store
+Desktop.ini
+Thumbs.db
+
+# Server
+.ftpquota
+error_log
+cgi-bin/
+.htpasswd
+
+# Other
+*.log
