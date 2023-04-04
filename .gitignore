@@ -13,7 +13,8 @@ cgi-bin/
 *.log
 
 # Project-specific
+.chroma/
 .env
 summaries/
-slugs.txt
 test_slugs.txt
+slugs.txt
