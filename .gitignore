@@ -13,6 +13,7 @@ cgi-bin/
 *.log
 
 # Project-specific
+.env
 summaries/
 slugs.txt
 test_slugs.txt
