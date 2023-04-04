@@ -1,13 +1,13 @@
 import os
 import requests
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, NavigableString
 from collections import OrderedDict
 from tabulate import tabulate
 
 
 OSRS_WIKI_URL_BASE = "https://oldschool.runescape.wiki"
-SLUGS_FILE = "test_slugs.txt"
+SLUGS_FILE = "slugs.txt"
 SUMMARIES_DIR = "summaries/"
 
 KNOWN_INFOBOX_LABELS = [
@@ -22,20 +22,62 @@ KNOWN_INFOBOX_LABELS = [
     "Object ID",
 ]
 KNOWN_HEADLINES = [
+    "Achievement gallery",
+    "Achievement Gallery",
     "Additional drops",
+    "Castle Wars armour",
     "Changes",
     "Creation Menu",
     "Gallery",
     "Location",
     "Locations",
+    "Loot table",
     "Mechanics",
+    "Offering fish",
+    "Passing the gate",
+    "Products",
+    "Rewards calculator",
+    "See also",
+    "Smithing armour",
     "Trivia",
+    "Transcipt",  # Intentional; see "Ancient Plaque"
     "Transcript",
     "Tree locations",
+    "Uses",
     "Woodcutting info",
 ]
 EXCLUDED_HEADLINES = [
     "References",
+]
+SKILLS = [
+    "Agility",
+    "Artisan",
+    "Attack",
+    "Construction",
+    "Cooking",
+    "Crafting",
+    "Defense",
+    "Defence",
+    "Farming",
+    "Firemaking",
+    "Fishing",
+    "Fletching",
+    "Herblore",
+    "Hitpoints",
+    "Hunter",
+    "Magic",
+    "Mining",
+    "Prayer",
+    "Ranged",
+    "Runecraft",
+    "Sailing",
+    "Slayer",
+    "Smithing",
+    "Strength",
+    "Summoning",
+    "Thieving",
+    "Warding",
+    "Woodcutting",
 ]
 
 
@@ -87,15 +129,37 @@ def main():
                 if headline not in KNOWN_HEADLINES:
                     print(f"\n***UNKNOWN HEADLINE: {headline}\nFOR TITLE: {title}***\n")
                 content += f"### {headline}\n\n"
+            if child.name == "h3":
+                headline = child.find("span", class_="mw-headline").text.strip()
+                content += f"#### {headline}\n\n"
             if child.name == "p":
                 content += f"{child.text.strip()}\n\n"
             if child.name == "ul":
                 for li in child.find_all("li"):
                     content += f"* {li.text.strip()}\n"
                 content += "\n"
-            if child.name == "table" and "wikitable" in child["class"]:
+            if (
+                child.name == "table"
+                and "class" in child.attrs
+                and "wikitable" in child["class"]
+            ):
                 # Extract the table headers and rows as lists
-                headers = [th.text.strip() for th in child.select("tr th")]
+                headers = []
+                for th in child.select("tr th"):
+                    header_content = ""
+
+                    # Removes [1], [c 1] etc annotations from the table headers.
+                    sups = th.find_all("sup")
+                    for sup in sups:
+                        sup.clear()
+
+                    skill = th.find("a")
+                    if skill and "title" in skill.attrs and skill["title"] in SKILLS:
+                        header_content += skill["title"] + " "
+
+                    header_content += th.text.strip()
+                    headers.append(header_content)
+
                 rows = []
                 for tr in child.select("tr"):
                     if not tr.select("td"):
@@ -106,6 +170,12 @@ def main():
                         # the table formatting.
                         if td.find("span", class_="plinkt-template"):
                             continue
+
+                        # Removes [1], [c 1] etc annotations from the table
+                        # data.
+                        sups = td.find_all("sup")
+                        for sup in sups:
+                            sup.clear()
 
                         members_img = td.find(
                             "img", src="/images/Member_icon.png?1de0c"
@@ -120,6 +190,32 @@ def main():
                         if f2p_img:
                             row.append(False)
                             continue
+
+                        if "class" in td.attrs and "plainlist" in td["class"]:
+                            row_content = ""
+                            for li in td.find_all("li"):
+                                row_content += li.text.strip() + " "
+                                skill = li.find("span", class_="scp")
+                                if skill and "data-skill" in skill.attrs:
+                                    row_content += skill["data-skill"]
+                                row_content += "\n"
+                            row.append(row_content)
+                            continue
+
+                        scps = td.find_all("span", class_="scp")
+                        row_content = ""
+                        for scp in scps:
+                            if "data-skill" in scp.attrs and "data-level" in scp.attrs:
+                                row_content += (
+                                    scp["data-skill"] + " " + scp["data-level"]
+                                )
+                            row_content += "\n"
+                        if row_content:
+                            row.append(row_content)
+                            continue
+
+                        for br in td.find_all("br"):
+                            br.replace_with(NavigableString("\n"))
 
                         row_content = td.text.strip()
                         row_content = row_content.replace("(update)", "")
