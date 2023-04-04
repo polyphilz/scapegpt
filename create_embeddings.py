@@ -3,67 +3,88 @@ import openai
 import os
 import re
 
+from chromadb.config import Settings
+from chromadb.utils import embedding_functions
 from dotenv import load_dotenv
 
 load_dotenv()
 
 
+# The directory where wiki article summaries are stored.
+SUMMARIES_DIR = "summaries/"
+# OpenAI API-specific constants.
 COMPLETIONS_MODEL = "text-davinci-003"
 EMBEDDING_MODEL = "text-embedding-ada-002"
-
-
-def create_embeddings(markdown_document):
-    # Convert Markdown document to plain text
-    plain_text = re.sub("#+ ", "", markdown_document)
-
-    return openai.Embedding.create(input=plain_text, model=EMBEDDING_MODEL)
 
 
 def main():
     # Set up your OpenAI API key
     openai.api_key = os.getenv("OPENAI_API_KEY")
 
-    client = chromadb.Client()
-    collection = client.create_collection("sample_collection")
-
-    # Set the path to the directory containing the Markdown files
-    directory_path = "summaries/"
-
-    # Get a list of all the Markdown files in the directory
-    markdown_files = [f for f in os.listdir(directory_path) if f.endswith(".md")]
-
-    # Loop through each Markdown file
-    embeddings = []
-    documents = []
-    for filename in markdown_files:
-        documents.append(filename.replace(".md", ""))
-        with open(directory_path + filename, "r") as file:
-            contents = file.read()
-            embedding = create_embeddings(contents)
-            embeddings.append(embedding.data[0].embedding)
-    collection.add(
-        embeddings=embeddings,
-        documents=documents,
-        ids=documents,
+    # Create a ChromaDB client and get/create the embeddings collection
+    client = chromadb.Client(Settings(
+        chroma_db_impl="duckdb+parquet",
+        persist_directory="./.chromadb",
+    ))
+    openai_ef = embedding_functions.OpenAIEmbeddingFunction(
+        api_key=os.getenv("OPENAI_API_KEY"), model_name="text-embedding-ada-002"
     )
+    collection = client.get_or_create_collection(
+        name="osrs_wiki_embeddings", embedding_function=openai_ef
+    )
+
+    # # Get a list of all the wiki summary docs and store in ChromaDB
+    # summary_docs = [f for f in os.listdir(SUMMARIES_DIR) if f.endswith(".md")]
+    # documents, filename_ids = [], []
+    # for filename in summary_docs:
+    #     filename_ids.append(filename.replace(".md", ""))
+    #     with open(SUMMARIES_DIR + filename, "r") as file:
+    #         contents = file.read()
+    #         # Convert Markdown to plain text to reduce noise
+    #         plain_text_contents = re.sub("#+ ", "", contents)
+    #         documents.append(plain_text_contents)
+    #         # embedding = create_embeddings(contents)
+    #         # embeddings.append(embedding.data[0].embedding)
+    # # collection.add(
+    # #     embeddings=embeddings,
+    # #     documents=documents,
+    # #     ids=documents,
+    # # )
+    # collection.add(
+    #     documents=documents,
+    #     ids=filename_ids,
+    # )
 
     # prompt = "Where can I find a barrel of rainwater (NOT the one from Misthalin Mystery)?"
+    # prompt = "Where can I find a barrel of rainwater?"
+    # prompt = "Which locations can I find a barrel of rainwater, and of those locations, which are accessible only by members?"
     # prompt = "Where can I find a bunk bed?"
     # prompt = "How do I build an altar space?"
-    prompt = "What is an altar space?"
-    query1_embedding = create_embeddings(prompt)
+    # prompt = "What is an altar space?"
+    # prompt = "Tell me more about bank chests."
+    # prompt = "Tell me some trivia about bank chests."
+    # prompt = "How many bank chests are accessible by members?"
+    # prompt = "How many bank chests are there in the game?"
+    prompt = "When was the bank chest-wreck released?"
+    prompt = "What is the examine text of the bank chest-wreck?"
+    prompt = "Tell me the changes the bank chest-wreck has undergone, and their dates."
+    prompt = "What construction level do I need to make an accomplishment scroll space?"
+    prompt = "How do I make an accomplishment scroll space?"
+    prompt = "What are the different types of altars I can create?"
+    prompt = "How do I make a dark altar?"
+    prompt = "Tell me about dark altars."
+    prompt = "How much will it cost to make a dark altar?"
     embedding_results = collection.query(
-        query_embeddings=query1_embedding.data[0].embedding, n_results=4
+        query_texts=[prompt],
+        n_results=4,
     )
-    document_results = embedding_results["documents"][0]
+    ids = embedding_results["ids"][0]
     filenames = []
-    for document in document_results:
-        filename = document + ".md"
-        filenames.append(filename)
-    print(filenames)
+    for id in ids:
+        filenames.append(id + ".md")
     context = ""
     for filename in filenames:
-        with open(directory_path + filename, "r") as file:
+        with open(SUMMARIES_DIR + filename, "r") as file:
             contents = file.read()
             context += contents + "\n\n"
     prompt_with_context = (
@@ -76,8 +97,8 @@ def main():
 
     final = openai.Completion.create(
         prompt=prompt_with_context,
-        temperature=0,
-        max_tokens=300,
+        temperature=0.5,
+        max_tokens=500,
         top_p=1,
         frequency_penalty=0,
         presence_penalty=0,
