@@ -7,7 +7,7 @@ from tabulate import tabulate
 
 
 OSRS_WIKI_URL_BASE = "https://oldschool.runescape.wiki"
-SLUGS_FILE = "slugs.txt"
+SLUGS_FILE = "test_slugs.txt"
 SUMMARIES_DIR = "summaries/"
 
 KNOWN_INFOBOX_LABELS = [
@@ -25,6 +25,7 @@ KNOWN_HEADLINES = [
     "Achievement gallery",
     "Achievement Gallery",
     "Additional drops",
+    "Agility info",
     "Castle Wars armour",
     "Changes",
     "Creation Menu",
@@ -33,6 +34,7 @@ KNOWN_HEADLINES = [
     "Locations",
     "Loot table",
     "Mechanics",
+    "Mining info",
     "Offering fish",
     "Passing the gate",
     "Products",
@@ -143,6 +145,20 @@ def main():
                 and "class" in child.attrs
                 and "wikitable" in child["class"]
             ):
+                # TODO(rbnsl): Figure out how to properly handle tables with
+                # merged cells. Until then, just skip them.
+                cells = soup.find_all(['th', 'td'])
+                has_merged_cells = False
+                for cell in cells:
+                    if 'rowspan' in cell.attrs and int(cell['rowspan']) > 1:
+                        has_merged_cells = True
+                        break
+                    elif 'colspan' in cell.attrs and int(cell['colspan']) > 1:
+                        has_merged_cells = True
+                        break
+                if has_merged_cells:
+                    continue
+
                 # Extract the table headers and rows as lists
                 headers = []
                 for th in child.select("tr th"):
@@ -230,6 +246,27 @@ def main():
                 # Convert the table to Markdown using the tabulate library
                 markdown_table = tabulate(rows, headers=headers, tablefmt="pipe")
                 content += markdown_table + "\n\n"
+            if (
+                child.name == "table"
+                and "class" in child.attrs
+                and "infobox" in child["class"] and "skill-info" in child["class"]
+            ):
+                trs = child.find_all("tr")
+                if len(trs) < 4:
+                    continue
+                for tr in trs[2:len(trs) - 1]:
+                    th = tr.find("th")
+                    if th:
+                        content += th.text.strip() + " - "
+                    skill_and_level = tr.find("span", class_="scp")
+                    if skill_and_level and "data-skill" in skill_and_level.attrs and "data-level" in skill_and_level.attrs:
+                        content += skill_and_level["data-level"] + " " + skill_and_level["data-skill"]
+                    else:
+                        td = tr.find("td")
+                        if td:
+                            content += td.text.strip()
+                    content += "\n"
+                content += "\n"
 
         # Get the article info box
         infobox_table = soup.find("table", {"class": "infobox"})
