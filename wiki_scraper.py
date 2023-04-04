@@ -147,13 +147,13 @@ def main():
             ):
                 # TODO(rbnsl): Figure out how to properly handle tables with
                 # merged cells. Until then, just skip them.
-                cells = soup.find_all(['th', 'td'])
+                cells = soup.find_all(["th", "td"])
                 has_merged_cells = False
                 for cell in cells:
-                    if 'rowspan' in cell.attrs and int(cell['rowspan']) > 1:
+                    if "rowspan" in cell.attrs and int(cell["rowspan"]) > 1:
                         has_merged_cells = True
                         break
-                    elif 'colspan' in cell.attrs and int(cell['colspan']) > 1:
+                    elif "colspan" in cell.attrs and int(cell["colspan"]) > 1:
                         has_merged_cells = True
                         break
                 if has_merged_cells:
@@ -249,18 +249,27 @@ def main():
             if (
                 child.name == "table"
                 and "class" in child.attrs
-                and "infobox" in child["class"] and "skill-info" in child["class"]
+                and "infobox" in child["class"]
+                and "skill-info" in child["class"]
             ):
                 trs = child.find_all("tr")
                 if len(trs) < 4:
                     continue
-                for tr in trs[2:len(trs) - 1]:
+                for tr in trs[2 : len(trs) - 1]:
                     th = tr.find("th")
                     if th:
                         content += th.text.strip() + " - "
                     skill_and_level = tr.find("span", class_="scp")
-                    if skill_and_level and "data-skill" in skill_and_level.attrs and "data-level" in skill_and_level.attrs:
-                        content += skill_and_level["data-level"] + " " + skill_and_level["data-skill"]
+                    if (
+                        skill_and_level
+                        and "data-skill" in skill_and_level.attrs
+                        and "data-level" in skill_and_level.attrs
+                    ):
+                        content += (
+                            skill_and_level["data-level"]
+                            + " "
+                            + skill_and_level["data-skill"]
+                        )
                     else:
                         td = tr.find("td")
                         if td:

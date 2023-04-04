@@ -22,10 +22,12 @@ def main():
     openai.api_key = os.getenv("OPENAI_API_KEY")
 
     # Create a ChromaDB client and get/create the embeddings collection
-    client = chromadb.Client(Settings(
-        chroma_db_impl="duckdb+parquet",
-        persist_directory="./.chromadb",
-    ))
+    client = chromadb.Client(
+        Settings(
+            chroma_db_impl="duckdb+parquet",
+            persist_directory="./.chromadb",
+        )
+    )
     openai_ef = embedding_functions.OpenAIEmbeddingFunction(
         api_key=os.getenv("OPENAI_API_KEY"), model_name="text-embedding-ada-002"
     )
