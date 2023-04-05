@@ -317,7 +317,13 @@ def main():
                 sups = child.find_all("sup")
                 for sup in sups:
                     sup_text = sup.text.strip()
-                    if "st" not in sup_text and "nd" not in sup_text and "rd" not in sup_text and "US" not in sup_text and "UK" not in sup_text:
+                    if (
+                        "st" not in sup_text
+                        and "nd" not in sup_text
+                        and "rd" not in sup_text
+                        and "US" not in sup_text
+                        and "UK" not in sup_text
+                    ):
                         sup.clear()
                 content += f"{child.text.strip()}\n\n"
             if child.name == "ul":
@@ -365,7 +371,13 @@ def main():
                     sups = th.find_all("sup")
                     for sup in sups:
                         sup_text = sup.text.strip()
-                        if "st" not in sup_text and "nd" not in sup_text and "rd" not in sup_text and "US" not in sup_text and "UK" not in sup_text:
+                        if (
+                            "st" not in sup_text
+                            and "nd" not in sup_text
+                            and "rd" not in sup_text
+                            and "US" not in sup_text
+                            and "UK" not in sup_text
+                        ):
                             sup.clear()
 
                     # Some tables have long enough headers that have <br>s;
@@ -408,7 +420,13 @@ def main():
                         sups = td.find_all("sup")
                         for sup in sups:
                             sup_text = sup.text.strip()
-                            if "st" not in sup_text and "nd" not in sup_text and "rd" not in sup_text and "US" not in sup_text and "UK" not in sup_text:
+                            if (
+                                "st" not in sup_text
+                                and "nd" not in sup_text
+                                and "rd" not in sup_text
+                                and "US" not in sup_text
+                                and "UK" not in sup_text
+                            ):
                                 sup.clear()
 
                         members_img = td.find(
@@ -482,8 +500,16 @@ def main():
                     if len(skills_and_levels) > 0:
                         content += " - "
                         for skl_lvl in skills_and_levels:
-                            if "data-skill" in skl_lvl.attrs and "data-level" in skl_lvl.attrs:
-                                content += skl_lvl["data-level"] + " " + skl_lvl["data-skill"] + ", "
+                            if (
+                                "data-skill" in skl_lvl.attrs
+                                and "data-level" in skl_lvl.attrs
+                            ):
+                                content += (
+                                    skl_lvl["data-level"]
+                                    + " "
+                                    + skl_lvl["data-skill"]
+                                    + ", "
+                                )
                         content = content[:-2]
                     else:
                         td = tr.find("td")
@@ -571,14 +597,18 @@ def main():
                 # example, with the "Keldagrim" and "Port Phasmatys".
                 for br in cols[1].find_all("br"):
                     br.replace_with(NavigableString(", "))
-                
+
                 row_content = (
                     cols[1].text.strip().replace(" (edit)", "").replace("(edit)", "")
                 )
 
                 # TODO(rbnsl): Clean this up. Use
                 # https://oldschool.runescape.wiki/w/Galvek as an example.
-                if cols[1].find("img") and "alt" in cols[1].find("img").attrs and "onster attack speed" in cols[1].find("img")["alt"]:
+                if (
+                    cols[1].find("img")
+                    and "alt" in cols[1].find("img").attrs
+                    and "onster attack speed" in cols[1].find("img")["alt"]
+                ):
                     row_content = cols[1].find("img")["alt"].replace(".png", "")[-1]
 
                 if row_label == "Map icon":
@@ -607,10 +637,12 @@ def main():
         # Save the output to a file
         if not os.path.exists(SUMMARIES_DIR):
             os.makedirs(SUMMARIES_DIR)
-        filename = title.lower().replace(" ", "-").replace("'", "").replace("/", "|") + ".md"
+        filename = (
+            title.lower().replace(" ", "-").replace("'", "").replace("/", "|") + ".md"
+        )
         with open(SUMMARIES_DIR + filename, "w", encoding="utf-8") as f:
             f.write(output)
-        
+
         z += 1
 
 
