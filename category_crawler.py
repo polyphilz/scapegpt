@@ -90,7 +90,7 @@ def generate_slug_file(category, slug):
         soup = BeautifulSoup(res.text, "html.parser")
 
         a_tags = soup.select("div#mw-pages div.mw-category a")
-        if not a_tags:
+        if len(a_tags) == 0:
             raise Exception(f"No articles found for category: {category}")
 
         slugs_for_category.extend([a["href"] for a in a_tags])
