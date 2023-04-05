@@ -63,28 +63,12 @@ def generate_article_summary(slug, slug_number):
 
     soup = BeautifulSoup(res.content, "html.parser")
 
-    # ~~~ ~~~ ~~~ ~~~
-    # 1. ARTICLE TITLE
-    # ~~~ ~~~ ~~~ ~~~
     title = _get_title()
     print(f"{slug_number}: {title} in progress...")
-
-    # ~~~ ~~~ ~~~ ~~~
-    # 2. ARTICLE INFOBOX
-    # ~~~ ~~~ ~~~ ~~~
     infobox = get_infobox(soup, title)
-
-    # ~~~ ~~~ ~~~ ~~~
-    # 3. ARTICLE CONTENT
-    # ~~~ ~~~ ~~~ ~~~
     content = get_content(soup, title)
 
-    # ~~~ ~~~ ~~~ ~~~
-    # SUMMARY GENERATION
-    # ~~~ ~~~ ~~~ ~~~
     summary = f"{title}\n\n{infobox}\n{content}"
-
-    # Save the output to a file
     if not os.path.exists(SUMMARIES_DIR):
         os.makedirs(SUMMARIES_DIR)
     filename = (
