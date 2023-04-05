@@ -16,6 +16,5 @@ cgi-bin/
 .chroma/
 .chromadb/
 .env
+slugs/
 summaries/
-test_slugs.txt
-slugs.txt
