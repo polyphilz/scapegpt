@@ -11,6 +11,7 @@ cgi-bin/
 
 # Other
 *.log
+__pycache__/
 
 # Project-specific
 .chroma/
