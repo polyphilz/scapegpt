@@ -44,12 +44,6 @@ CATEGORIES_REQUIRING_SUBCATEGORY_EXPLORATION = [
     "Languages",  # This is skipped anyway; included here for completeness.
     "Old School-exclusive content",
 ]
-# This is just for dev purposes. Only allows for slug file generation for these
-# categories.
-GENERATE_SLUGS_FOR_CATEGORIES = [
-    "Achievement diaries",
-    "Scenery",
-]
 
 
 def collect_category_slugs(url, categories_to_slugs):
@@ -95,7 +89,7 @@ def generate_slug_file(category, slug):
         res = requests.get(url)
         soup = BeautifulSoup(res.text, "html.parser")
 
-        a_tags = soup.select("div.mw-category.mw-category-columns a")
+        a_tags = soup.select("div#mw-pages div.mw-category a")
         if not a_tags:
             raise Exception(f"No articles found for category: {category}")
 
@@ -130,8 +124,8 @@ def generate_slug_file(category, slug):
 def main():
     categories_to_slugs = {}
     collect_category_slugs(OSRS_WIKI_CATEGORY_CATALOG, categories_to_slugs)
-    for category in GENERATE_SLUGS_FOR_CATEGORIES:
-        generate_slug_file(category, categories_to_slugs[category])
+    for category, slug in categories_to_slugs.items():
+        generate_slug_file(category, slug)
 
 
 if __name__ == "__main__":
