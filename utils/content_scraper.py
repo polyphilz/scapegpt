@@ -1,7 +1,7 @@
 import copy
 
 from bs4 import NavigableString
-from tabulate import tabulate
+from enum import Enum
 
 
 EXCLUDED_HEADLINES = set(
@@ -12,6 +12,9 @@ EXCLUDED_HEADLINES = set(
         "gallery (historical)",
         "trivia",
         "history",
+        "see also",
+        "combat style",
+        "combat styles",
     ]
 )
 KNOWN_HEADLINES = set(
@@ -30,6 +33,7 @@ KNOWN_HEADLINES = set(
         "capes",
         "castle wars armour",
         "combat achievements",
+        "combat skills",
         "common cannon spots",
         "comparison between other ranged weapons",
         "contribution experience",
@@ -85,6 +89,7 @@ KNOWN_HEADLINES = set(
         "notes",
         "npcs",
         "offering fish",
+        "other factors",
         "oubliette, dungeon, and treasure room",
         "oubliette",
         "passing the gate",
@@ -106,7 +111,6 @@ KNOWN_HEADLINES = set(
         "reward possibilities",
         "rewards possibilities",
         "rewards",
-        "see also",
         "shattered relics",
         "shop",
         "skill info",
@@ -229,6 +233,11 @@ def _parse_wikitable(wikitable):
 
             row = []
             for td in tds:
+                # Remove all mathematical formulas/elements as these mess up
+                # formatting.
+                for math_element in td.select("span.mwe-math-element"):
+                    math_element.clear()
+
                 # Ignore cells containing just images as this messes up
                 # the table formatting. For example, consider the
                 # "Creation Menu" table under the
@@ -291,12 +300,15 @@ def _parse_wikitable(wikitable):
                 # Some table data cells contain a list.
                 if "class" in td.attrs and "plainlist" in td["class"]:
                     row_content = ""
+                    at_least_one_li = False
                     for li in td.find_all("li"):
-                        row_content += li.text.strip() + " "
+                        row_content += li.text.strip()
                         skill = li.find("span", class_="scp")
                         if skill and "data-skill" in skill.attrs:
-                            row_content += skill["data-skill"]
-                        row_content += "\n"
+                            row_content += " " + skill["data-skill"]
+                        row_content += " / "
+                        at_least_one_li = True
+                    row_content = row_content[:-3] if at_least_one_li else row_content
                     row.append(row_content)
                     continue
 
@@ -307,17 +319,21 @@ def _parse_wikitable(wikitable):
                 scps = td.find_all("span", class_="scp")
                 if len(scps) > 0:
                     row_content = ""
+                    at_least_one_scp = False
                     for scp in scps:
                         if "data-skill" in scp.attrs and "data-level" in scp.attrs:
-                            row_content += scp["data-skill"] + " " + scp["data-level"]
-                        row_content += "\n"
+                            at_least_one_scp = True
+                            row_content += (
+                                scp["data-skill"] + " " + scp["data-level"] + " / "
+                            )
+                    row_content = row_content[:-3] if at_least_one_scp else row_content
                     row.append(row_content)
                     continue
 
                 # Some table data cells contain <br>s. These should be replaced
                 # such that table data is comma-delimited.
                 for br in td.find_all("br"):
-                    br.replace_with(NavigableString(", "))
+                    br.replace_with(NavigableString(" / "))
 
                 # Same as with headers, we don't want to consider the high alch
                 # information.
@@ -341,7 +357,15 @@ def _parse_wikitable(wikitable):
                 # column with the rune/staff images needs to be ignored.
                 #
                 # In this case, we can just skip this row content.
-                if row_content:
+                #
+                # In some cases, we may have no row content BUT there is no
+                # image; the cell is simply empty. We _do_ want to keep this
+                # as without it, formatting of the table will be broken. For
+                # example, consider the "Farming" table in:
+                # https://oldschool.runescape.wiki/w/Closest... Some of the
+                # cells under "Distance" are empty. If we skipped them, there
+                # would be formatting issues with "Requirements" cells.
+                if row_content or not td.select("a img"):
                     row.append(row_content)
 
             rows.append(row)
@@ -398,6 +422,143 @@ def _parse_skill_infobox(skill_infobox):
     return output
 
 
+def _parse_unordered_list(ul):
+    output = ""
+    for li in ul.find_all("li", recursive=False):
+        sub_ul = li.find("ul")
+        if sub_ul:
+            copy_ul = copy.copy(sub_ul)
+            sub_ul.clear()
+            output += f"* {li.text.strip()}\n"
+            for sub_li in copy_ul.find_all("li"):
+                output += f"  * {sub_li.text.strip()}\n"
+            continue
+        output += f"* {li.text.strip()}\n"
+    return output + "\n"
+
+
+def _parse_tabber(tabber):
+    """Parses tabber <div>s.
+
+    For example, the table under "Quests" in
+    https://oldschool.runescape.wiki/w/Combat_only_pure is a tabber as it has
+    multiple, clickable tabs with different information depending on which tab
+    is selected.
+    """
+    tabs = tabber.select("div.tabbertab")
+    if len(tabs) == 0:
+        return ""
+
+    output = ""
+    for tab in tabs:
+        # Append the tab's title before adding the tab content.
+        if "data-title" in tab.attrs:
+            output += tab["data-title"] + ":\n\n"
+
+        wikitable = tab.select("table.wikitable")
+        if len(wikitable) > 0:
+            output += _parse_wikitable(wikitable[0])
+            continue
+
+        ul = tab.select("ul")
+        if len(ul) > 0:
+            output += _parse_unordered_list(ul[0])
+            continue
+    return output
+
+
+# TODO(rbnsl): Abstract this out with how you do this in right-hand side
+# infoboxes (as per `infobox_scraper.py`).
+def _parse_combat_bonuses(infobox, title):
+    """Parses combat bonus tables found on equipment pages."""
+
+    class CombatBonusesState(Enum):
+        ATTACK = 1
+        DEFENCE = 2
+        OTHER = 3
+        ATTACK_SPEED_AND_RANGE = 4
+
+    rows = infobox.find_all("tr")
+    if len(rows) == 0:
+        return ""
+
+    output = ""
+    cur_state = CombatBonusesState.ATTACK
+    cur_bonus_headers = []
+    for row in rows:
+        section_header = row.find("th", class_="infobox-subheader")
+        if section_header:
+            section_header = section_header.text.strip()
+            if "defence" in section_header.lower():
+                cur_state = CombatBonusesState.DEFENCE
+            elif "other" in section_header.lower():
+                cur_state = CombatBonusesState.OTHER
+            elif "speed" in section_header.lower():
+                # Special case; handle separately as it has a different format
+                cur_state = CombatBonusesState.ATTACK_SPEED_AND_RANGE
+                output += "Additional weapon info" + ":\n\n"
+                cur_bonus_headers.extend(["Base attack speed", "Weapon range"])
+                continue
+            output += section_header + ":\n\n"
+            continue
+
+        # Rows that have padding typically *just* have padding. Skip them.
+        has_padding = row.find("td", class_="infobox-padding")
+        if has_padding:
+            continue
+
+        bonus_types = row.find_all("th", class_="infobox-nested")
+        for bonus_type in bonus_types:
+            bonus_type_a = bonus_type.find("a")
+            if "title" not in bonus_type_a.attrs:
+                continue
+            bonus_type_title = bonus_type_a["title"]
+            if cur_state == CombatBonusesState.ATTACK:
+                bonus_type_title += " (attack bonus)"
+            elif cur_state == CombatBonusesState.DEFENCE:
+                bonus_type_title += " (defence bonus)"
+            elif (
+                cur_state == CombatBonusesState.OTHER
+                and "slot" in bonus_type_title.lower()
+            ):
+                bonus_type_title = "Slot"
+
+            cur_bonus_headers.append(bonus_type_title)
+            continue
+
+        bonus_values = row.find_all("td", class_="infobox-nested")
+        if len(bonus_values) != len(cur_bonus_headers):
+            print(f"Oddly formatted combat bonus table in article: {title}")
+            continue
+
+        for i, bonus_value in enumerate(bonus_values):
+            for br in bonus_value.find_all("br"):
+                br.replace_with(NavigableString(" "))
+
+            bv = bonus_value.text.strip()
+
+            bv_a = bonus_value.find("a")
+            if bv_a and "title" in bv_a.attrs and "slot" in bv_a["title"].lower():
+                # Handle "slot"
+                bv = bv_a["title"]
+            elif bv_a and "title" in bv_a.attrs and "speed" in bv_a["title"].lower():
+                # Handle attack speed
+                attack_speed_img = bv_a.find("img")
+                if (
+                    attack_speed_img
+                    and "alt" in attack_speed_img.attrs
+                    and "speed" in attack_speed_img["alt"].lower()
+                ):
+                    bv = attack_speed_img["alt"].replace(".png", "")[-1]
+
+            output += f"{cur_bonus_headers[i]}: {bv}\n"
+
+        cur_bonus_headers = []
+        output += "\n"
+
+    return output + "\n"
+
+
 def get_content(soup, title):
     content_section = soup.select(
         "div#bodyContent div#mw-content-text div.mw-parser-output"
@@ -437,6 +598,10 @@ def get_content(soup, title):
 
         match child.name:
             case "div":
+                if "class" in child.attrs and "tabber" in child["class"]:
+                    output += _parse_tabber(child)
+                    continue
+
                 for childs_child in child.findChildren(recursive=False):
                     if (
                         childs_child.name == "div"
@@ -483,17 +648,7 @@ def get_content(soup, title):
                 output += f"{child.text.strip()}\n\n"
 
             case "ul":
-                for li in child.find_all("li", recursive=False):
-                    ul = li.find("ul")
-                    if ul:
-                        copy_ul = copy.copy(ul)
-                        ul.clear()
-                        output += f"* {li.text.strip()}\n"
-                        for sub_li in copy_ul.find_all("li"):
-                            output += f"  * {sub_li.text.strip()}\n"
-                        continue
-                    output += f"* {li.text.strip()}\n"
-                output += "\n"
+                output += _parse_unordered_list(child)
 
             case numbered_list_tag if numbered_list_tag in ["dl", "ol"]:
                 for i, li in enumerate(child.find_all("li")):
@@ -515,6 +670,12 @@ def get_content(soup, title):
                 # Agility skill box.
                 if "infobox" in child["class"] and "skill-info" in child["class"]:
                     output += _parse_skill_infobox(child)
+                    continue
+                # "Infobox bonuses" are tables depicting the combat bonuses for
+                # equipment. https://oldschool.runescape.wiki/w/Abyssal_bludgeon
+                # for an example; the infobox bonus table appears near the top.
+                if "infobox" in child["class"] and "infobox-bonuses" in child["class"]:
+                    output += _parse_combat_bonuses(child, title)
                     continue
 
     return output.strip()
