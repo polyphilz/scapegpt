@@ -42,7 +42,9 @@ VALID_COMBAT_STATS_DATA_ATTRS = set(
         "drange",
     ]
 )
-EXCLUDED_INFOBOX_LABELS = set(["map icon", "monster id", "npc id", "object id"])
+EXCLUDED_INFOBOX_LABELS = set(
+    ["map icon", "monster id", "npc id", "object id", "item id"]
+)
 KNOWN_INFOBOX_LABELS = set(
     [
         "released",
@@ -222,6 +224,11 @@ def get_infobox(soup, title):
         if len(cols) < 2:
             continue
 
+        # Some table headers have <br>s; these need to be replaced with
+        # whitespace.
+        for br in cols[0].find_all("br"):
+            br.replace_with(NavigableString(" "))
+
         row_label = cols[0].text.strip()
         if row_label.lower() in EXCLUDED_INFOBOX_LABELS:
             continue
@@ -239,6 +246,8 @@ def get_infobox(soup, title):
             .text.strip()
             .replace(" (edit)", "")
             .replace("(edit)", "")
+            .replace(" (info)", "")
+            .replace("(info)", "")
             .replace("(Update)", "")
             .replace(" (Update)", "")
         )
