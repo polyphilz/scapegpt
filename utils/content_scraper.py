@@ -10,6 +10,7 @@ EXCLUDED_HEADLINES = set(
         "references",
         "gallery",
         "gallery (historical)",
+        "trivia",
     ]
 )
 KNOWN_HEADLINES = set(
@@ -125,7 +126,6 @@ KNOWN_HEADLINES = set(
         "trailblazers",
         "transportation",
         "treasure trails",
-        "trivia",
         "training",
         "transcipt",  # Intentional; see "Ancient Plaque"
         "transcript",

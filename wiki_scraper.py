@@ -51,7 +51,6 @@ def generate_article_summary(slug, slug_number):
       2. The article's infobox (right-hand side metadata/information)
       3. The article's core content
     """
-
     def _get_title():
         title = soup.find("h1", id="firstHeading")
         if not title:
