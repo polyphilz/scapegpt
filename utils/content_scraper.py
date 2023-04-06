@@ -15,6 +15,7 @@ EXCLUDED_HEADLINES = set(
         "see also",
         "combat style",
         "combat styles",
+        "creation",
     ]
 )
 KNOWN_HEADLINES = set(

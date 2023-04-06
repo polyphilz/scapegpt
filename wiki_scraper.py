@@ -34,6 +34,7 @@ SCRAPE_CATEGORIES = [
     "Organisations",
     "Pets",
     "Races",
+    "Items",
 ]
 
 
