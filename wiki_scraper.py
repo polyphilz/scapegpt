@@ -12,12 +12,28 @@ OSRS_WIKI_URL_BASE = "https://oldschool.runescape.wiki"
 SLUGS_DIR = "slugs/"
 SLUGS_DEV_FILE = "test_slugs.txt"
 SUMMARIES_DIR = "summaries/"
+PROBLEM_PAGES = [
+    "calc",
+    "screenshots",
+    "user:",
+]
 # This is just for dev purposes. It allows for only scraping specific
 # categories.
 SCRAPE_CATEGORIES = [
-    "A Night at the Theatre",
-    # "Achievement diaries",
-    # "Scenery",
+    "Combat",
+    "Combat Achievements",
+    "Community",
+    "Content with player credits",
+    "Distraction and Diversion",
+    "Game info",
+    "Glitches",
+    "Guides",
+    "Gods",
+    "Monsters",
+    "Non-player characters",
+    "Organisations",
+    "Pets",
+    "Races",
 ]
 
 
@@ -39,6 +55,14 @@ def get_slugs(dev=False):
 
         with open(SLUGS_DIR + filename, "r") as file:
             for line in file:
+                # Hacky way of skipping specific problem-pages.
+                should_skip_slug = False
+                for problem_page in PROBLEM_PAGES:
+                    if problem_page in line.lower():
+                        should_skip_slug = True
+                        break
+                if should_skip_slug:
+                    continue
                 slugs.append(line.strip())
     return slugs
 
