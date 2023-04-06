@@ -11,6 +11,7 @@ EXCLUDED_HEADLINES = set(
         "gallery",
         "gallery (historical)",
         "trivia",
+        "history",
     ]
 )
 KNOWN_HEADLINES = set(
@@ -54,7 +55,6 @@ KNOWN_HEADLINES = set(
         "growth stages",
         "herbs",
         "high-tier loot table",
-        "history",
         "hitpoints info",
         "how to use the fractionalising still",
         "hp scaling in different team sizes",
@@ -141,36 +141,261 @@ KNOWN_HEADLINES = set(
 )
 SKILLS = set(
     [
-        "Agility",
-        "Artisan",
-        "Attack",
-        "Construction",
-        "Cooking",
-        "Crafting",
-        "Defense",
-        "Defence",
-        "Farming",
-        "Firemaking",
-        "Fishing",
-        "Fletching",
-        "Herblore",
-        "Hitpoints",
-        "Hunter",
-        "Magic",
-        "Mining",
-        "Prayer",
-        "Ranged",
-        "Runecraft",
-        "Sailing",
-        "Slayer",
-        "Smithing",
-        "Strength",
-        "Summoning",
-        "Thieving",
-        "Warding",
-        "Woodcutting",
+        "agility",
+        "artisan",
+        "attack",
+        "construction",
+        "cooking",
+        "crafting",
+        "defense",
+        "defence",
+        "farming",
+        "firemaking",
+        "fishing",
+        "fletching",
+        "herblore",
+        "hitpoints",
+        "hunter",
+        "magic",
+        "mining",
+        "prayer",
+        "ranged",
+        "runecraft",
+        "sailing",
+        "slayer",
+        "smithing",
+        "strength",
+        "summoning",
+        "thieving",
+        "warding",
+        "woodcutting",
     ]
 )
+
+
+def _parse_wikitable(wikitable):
+    def _get_headers():
+        headers = []
+        for th in wikitable.select("tr th"):
+            header_content = ""
+
+            # TODO(rbnsl): Abstract this out.
+            # Removes annotations ([1], [c 1] etc.).
+            sups = th.find_all("sup")
+            for sup in sups:
+                sup_text = sup.text.strip()
+                if (
+                    "st" not in sup_text
+                    and "nd" not in sup_text
+                    and "rd" not in sup_text
+                    and "US" not in sup_text
+                    and "UK" not in sup_text
+                ):
+                    sup.clear()
+
+            # Some tables have long enough headers that have <br>s; these need to be
+            # replaced with whitespace.
+            for br in th.find_all("br"):
+                br.replace_with(NavigableString(" "))
+
+            # Some table headers have images of skills; these need to be parsed in a
+            # way that actually adds the name of the skill.
+            skill = th.find("a")
+            if skill and "title" in skill.attrs and skill["title"].lower() in SKILLS:
+                header_content += skill["title"] + " "
+
+            # There are some "hidden" column headers on the wiki, such as high
+            # alch on drop tables. Remove these to save token space (they don't)
+            # add any meaningful information.
+            if "class" in th.attrs and "alch-column" in th["class"]:
+                continue
+
+            header_content += th.text.strip()
+
+            # Some headers may be empty, in which case we want to ignore them.
+            # For example, in any of the drops tables in
+            # https://oldschool.runescape.wiki/w/Zulrah, the first column header
+            # is a cog with no text; we can ignore it.
+            if header_content:
+                headers.append(header_content)
+        return headers
+
+    def _get_rows():
+        rows = []
+        for tr in wikitable.select("tr"):
+            tds = tr.select("td")
+            if len(tds) == 0:
+                continue
+
+            row = []
+            for td in tds:
+                # Ignore cells containing just images as this messes up
+                # the table formatting. For example, consider the
+                # "Creation Menu" table under the
+                # "Dining Room, Combat Room, Throne Room, and Treasure Room"
+                # headline in
+                # https://oldschool.runescape.wiki/w/Decoration_space. Under
+                # the "Decoration" column, the first column containing just the
+                # images should be ignored. All of these have nested under them
+                # a `span.plinkt-template` element, so these are filtered below.
+                if td.find("span", class_="plinkt-template"):
+                    continue
+
+                # Alternatively, some cells containing just images are necessary
+                # to parse. For example, consider the table under the
+                # "Armour sets" headline in
+                # https://oldschool.runescape.wiki/w/Armour_case_space. Under
+                # the "Pieces" column, each row contains only images. Without
+                # metadata from these images, there would be no row content. As
+                # a result, these need to be parsed. These types of images we
+                # need to parse *usually* have a `span.plinkp-template` element
+                # nested under them, so we filter on that below.
+                parsable_imgs = td.find_all("span", class_="plinkp-template")
+                if len(parsable_imgs) > 0:
+                    parsable_img_content = ""
+                    for parsable_img in parsable_imgs:
+                        parsable_img_a = parsable_img.find("a")
+                        if "title" not in parsable_img_a.attrs:
+                            continue
+                        parsable_img_content += parsable_img_a["title"] + ", "
+                    row.append(parsable_img_content[:-2])
+                    continue
+
+                # TODO(rbnsl): Abstract this out.
+                # Removes annotations ([1], [c 1] etc.).
+                sups = td.find_all("sup")
+                for sup in sups:
+                    sup_text = sup.text.strip()
+                    if (
+                        "st" not in sup_text
+                        and "nd" not in sup_text
+                        and "rd" not in sup_text
+                        and "US" not in sup_text
+                        and "UK" not in sup_text
+                    ):
+                        sup.clear()
+
+                # Some table data cells contain just a gold or silver star
+                # indicating whether a piece of content is members-only or
+                # available for free-to-play (F2P) players. Replace these images
+                # with text with semantic meaning.
+                members_img = td.find("img", src="/images/Member_icon.png?1de0c")
+                f2p_img = td.find("img", src="/images/Free-to-play_icon.png?628ce")
+                if members_img:
+                    row.append("Members-only")
+                    continue
+                elif f2p_img:
+                    row.append("Free-to-play (F2P)")
+                    continue
+
+                # Some table data cells contain a list.
+                if "class" in td.attrs and "plainlist" in td["class"]:
+                    row_content = ""
+                    for li in td.find_all("li"):
+                        row_content += li.text.strip() + " "
+                        skill = li.find("span", class_="scp")
+                        if skill and "data-skill" in skill.attrs:
+                            row_content += skill["data-skill"]
+                        row_content += "\n"
+                    row.append(row_content)
+                    continue
+
+                # Some table data cells contain a skill icon with some text
+                # representing a level requirement for that skill. We can pull
+                # the two pieces of information we need (skill name + level) off
+                # of `span.scp`.
+                scps = td.find_all("span", class_="scp")
+                if len(scps) > 0:
+                    row_content = ""
+                    for scp in scps:
+                        if "data-skill" in scp.attrs and "data-level" in scp.attrs:
+                            row_content += scp["data-skill"] + " " + scp["data-level"]
+                        row_content += "\n"
+                    row.append(row_content)
+                    continue
+
+                # Some table data cells contain <br>s. These should be replaced
+                # such that table data is comma-delimited.
+                for br in td.find_all("br"):
+                    br.replace_with(NavigableString(", "))
+
+                # Same as with headers, we don't want to consider the high alch
+                # information.
+                if "class" in td.attrs and "alch-column" in td["class"]:
+                    continue
+
+                # At this point, we can just parse the row content normally.
+                row_content = td.text.strip()
+                row_content = row_content.replace("(update)", "")
+                row_content = row_content.replace(" (update)", "")
+                # TODO(rbnsl): These below 3 aren't working; fix them.
+                row_content = row_content.replace(" (update | poll)", "")
+                row_content = row_content.replace("\n(update | poll)", "")
+                row_content = row_content.replace("(update | poll)", "")
+
+                # We might have no row content. This usually happens when the
+                # table data cell just had an image that did _not_ have a
+                # `.plinkt-template` class or `.plinkp-template` somewhere
+                # inside it. An example of this is the "Products" table in
+                # https://oldschool.runescape.wiki/w/Air_Altar. That very first
+                # column with the rune/staff images needs to be ignored.
+                #
+                # In this case, we can just skip this row content.
+                if row_content:
+                    row.append(row_content)
+
+            rows.append(row)
+
+        return rows
+
+    output = ""
+    headers = _get_headers()
+    rows = _get_rows()
+
+    for row in rows:
+        for i in range(len(headers)):
+            header = headers[i]
+            cell = row[i] if i < len(row) else ""
+            output += f"{header}: {cell}, "
+        output = output[:-2] + "\n"
+
+    output += "\n"
+    return output
+
+
+def _parse_skill_infobox(skill_infobox):
+    output = ""
+
+    rows = skill_infobox.find_all("tr")
+    for row in rows:
+        # Skip header/padding rows.
+        if row.find("td", class_="infobox-padding") or row.find(
+            "th", class_="infobox-header"
+        ):
+            continue
+
+        row_label = row.find("th")
+        if row_label:
+            output += row_label.text.strip()
+
+        # For the "Level required" row, we need to extract the skill name and
+        # and value. These can both be gotten off `span.scp`.
+        skills_and_levels = row.find_all("span", class_="scp")
+        if len(skills_and_levels) > 0:
+            output += " - "
+            for skl_lvl in skills_and_levels:
+                if "data-skill" in skl_lvl.attrs and "data-level" in skl_lvl.attrs:
+                    output += skl_lvl["data-level"] + " " + skl_lvl["data-skill"] + ", "
+            output = output[:-2] + "\n"
+            continue
+
+        row_value = row.find("td")
+        if row_value and row_value.text.strip():
+            output += " - " + row_value.text.strip()
+        output += "\n"
+
+    output += "\n"
+    return output
 
 
 def get_content(soup, title):
@@ -193,7 +418,10 @@ def get_content(soup, title):
                 continue
 
             headline = headline.text.strip()
-            if headline.lower() not in KNOWN_HEADLINES:
+            if (
+                headline.lower() not in KNOWN_HEADLINES
+                and headline.lower() not in EXCLUDED_HEADLINES
+            ):
                 print(f"\nUNKNOWN *HEADLINE*: {headline}\nFOR TITLE: {title}\n")
             cur_headline = headline
             if cur_headline.lower() in EXCLUDED_HEADLINES:
@@ -275,166 +503,18 @@ def get_content(soup, title):
             case "table":
                 if "class" not in child.attrs:
                     continue
-
+                # Constitutes the majority of tables in the wiki. An example is
+                # the "Drops" tables in:
+                # https://oldschool.runescape.wiki/w/Zulrah.
                 if "wikitable" in child["class"]:
-                    # Extract the table headers and rows as lists
-                    headers = []
-                    for th in child.select("tr th"):
-                        header_content = ""
+                    output += _parse_wikitable(child)
+                    continue
+                # "Skill boxes" usually denoting 1+ skill levels required to
+                # do or make something. An example is:
+                # https://oldschool.runescape.wiki/w/A_wooden_log, which has an
+                # Agility skill box.
+                if "infobox" in child["class"] and "skill-info" in child["class"]:
+                    output += _parse_skill_infobox(child)
+                    continue
 
-                        # Removes [1], [c 1] etc annotations from the table headers.
-                        sups = th.find_all("sup")
-                        for sup in sups:
-                            sup_text = sup.text.strip()
-                            if (
-                                "st" not in sup_text
-                                and "nd" not in sup_text
-                                and "rd" not in sup_text
-                                and "US" not in sup_text
-                                and "UK" not in sup_text
-                            ):
-                                sup.clear()
-
-                        # Some tables have long enough headers that have <br>s;
-                        # these need to be replaced with a space.
-                        for br in th.find_all("br"):
-                            br.replace_with(NavigableString(" "))
-
-                        skill = th.find("a")
-                        if (
-                            skill
-                            and "title" in skill.attrs
-                            and skill["title"] in SKILLS
-                        ):
-                            header_content += skill["title"] + " "
-
-                        header_content += th.text.strip()
-                        headers.append(header_content)
-
-                    rows = []
-                    for tr in child.select("tr"):
-                        if not tr.select("td"):
-                            continue
-                        row = []
-                        for td in tr.select("td"):
-                            # Ignore cells containing just images as this messes up
-                            # the table formatting.
-                            if td.find("span", class_="plinkt-template"):
-                                continue
-
-                            # We need to get the text of the images. See:
-                            # "Armour case space" as an example of this.
-                            plinkps = td.find_all("span", class_="plinkp-template")
-                            if len(plinkps) > 0:
-                                plinkp_content = ""
-                                for plinkp in plinkps:
-                                    plinkp_anchor_tag = plinkp.find("a")
-                                    if "title" in plinkp_anchor_tag.attrs:
-                                        plinkp_content += (
-                                            plinkp_anchor_tag["title"] + ", "
-                                        )
-                                row.append(plinkp_content[:-2])
-                                continue
-
-                            # Removes [1], [c 1] etc annotations from the table
-                            # data.
-                            sups = td.find_all("sup")
-                            for sup in sups:
-                                sup_text = sup.text.strip()
-                                if (
-                                    "st" not in sup_text
-                                    and "nd" not in sup_text
-                                    and "rd" not in sup_text
-                                    and "US" not in sup_text
-                                    and "UK" not in sup_text
-                                ):
-                                    sup.clear()
-
-                            members_img = td.find(
-                                "img", src="/images/Member_icon.png?1de0c"
-                            )
-                            if members_img:
-                                row.append("Members-only")
-                                continue
-
-                            f2p_img = td.find(
-                                "img", src="/images/Free-to-play_icon.png?628ce"
-                            )
-                            if f2p_img:
-                                row.append("Available for free-to-play (F2P) players")
-                                continue
-
-                            if "class" in td.attrs and "plainlist" in td["class"]:
-                                row_content = ""
-                                for li in td.find_all("li"):
-                                    row_content += li.text.strip() + " "
-                                    skill = li.find("span", class_="scp")
-                                    if skill and "data-skill" in skill.attrs:
-                                        row_content += skill["data-skill"]
-                                    row_content += "\n"
-                                row.append(row_content)
-                                continue
-
-                            scps = td.find_all("span", class_="scp")
-                            row_content = ""
-                            for scp in scps:
-                                if (
-                                    "data-skill" in scp.attrs
-                                    and "data-level" in scp.attrs
-                                ):
-                                    row_content += (
-                                        scp["data-skill"] + " " + scp["data-level"]
-                                    )
-                                row_content += "\n"
-                            if row_content:
-                                row.append(row_content)
-                                continue
-
-                            for br in td.find_all("br"):
-                                br.replace_with(NavigableString("\n"))
-
-                            row_content = td.text.strip()
-                            row_content = row_content.replace("(update)", "")
-                            row_content = row_content.replace(" (update)", "")
-                            # TODO(rbnsl): These below 3 aren't working; fix them.
-                            row_content = row_content.replace(" (update | poll)", "")
-                            row_content = row_content.replace("\n(update | poll)", "")
-                            row_content = row_content.replace("(update | poll)", "")
-
-                            row.append(row_content)
-                        rows.append(row)
-
-                    # Convert the table to Markdown using the tabulate library
-                    markdown_table = tabulate(rows, headers=headers, tablefmt="pipe")
-                    output += markdown_table + "\n\n"
-                elif "infobox" in child["class"] and "skill-info" in child["class"]:
-                    trs = child.find_all("tr")
-                    if len(trs) < 4:
-                        continue
-                    for tr in trs[2 : len(trs) - 1]:
-                        th = tr.find("th")
-                        if th:
-                            output += th.text.strip()
-                        skills_and_levels = tr.find_all("span", class_="scp")
-                        if len(skills_and_levels) > 0:
-                            output += " - "
-                            for skl_lvl in skills_and_levels:
-                                if (
-                                    "data-skill" in skl_lvl.attrs
-                                    and "data-level" in skl_lvl.attrs
-                                ):
-                                    output += (
-                                        skl_lvl["data-level"]
-                                        + " "
-                                        + skl_lvl["data-skill"]
-                                        + ", "
-                                    )
-                            output = output[:-2]
-                        else:
-                            td = tr.find("td")
-                            if td and td.text.strip():
-                                output += " - " + td.text.strip()
-                        output += "\n"
-                    output += "\n"
-
-    return output
+    return output.strip()
