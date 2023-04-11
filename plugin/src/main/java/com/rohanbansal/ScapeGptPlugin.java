@@ -1,20 +1,20 @@
 package com.rohanbansal;
 
+import com.google.gson.Gson;
 import com.google.inject.Provides;
 import java.awt.image.BufferedImage;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.api.ChatMessageType;
-import net.runelite.api.Client;
-import net.runelite.api.GameState;
-import net.runelite.api.events.GameStateChanged;
+import net.runelite.client.account.AccountSession;
+import net.runelite.client.account.SessionManager;
 import net.runelite.client.config.ConfigManager;
-import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.ui.ClientToolbar;
 import net.runelite.client.ui.NavigationButton;
 import net.runelite.client.util.ImageUtil;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 
 @Slf4j
 @PluginDescriptor(
@@ -26,23 +26,33 @@ public class ScapeGptPlugin extends Plugin
 	@Inject
 	private ClientToolbar clientToolbar;
 
-//	@Inject
-//	private Client client;
-
 	@Inject
 	private ScapeGptConfig config;
 
+	@Inject
+	private SessionManager sessionManager;
+
+	private ScapeGptClient scapeGptClient;
 	private ScapeGptPanel panel;
 	private NavigationButton navButton;
+	private HttpUrl apiUrl;
 
 	@Override
-	protected void startUp() throws Exception
-	{
-		log.info("ScapeGPT started!");
+	protected void startUp() {
+		apiUrl = new HttpUrl.Builder().scheme("http").host("127.0.0.1").port(4747).build();
+
+		AccountSession accountSession = sessionManager.getAccountSession();
+		System.out.println(accountSession.getUuid());
+
+		scapeGptClient = new ScapeGptClient(new OkHttpClient(), apiUrl, new Gson());
+        if (accountSession != null) {
+            scapeGptClient.setUuid(accountSession.getUuid());
+        } else {
+            scapeGptClient.setUuid(null);
+        }
 
 		panel = injector.getInstance(ScapeGptPanel.class);
-//		panel.init(config);
-		panel.init();
+		panel.init(scapeGptClient);
 
 		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "scapegpt-icon.png");
 
@@ -57,19 +67,8 @@ public class ScapeGptPlugin extends Plugin
 	}
 
 	@Override
-	protected void shutDown() throws Exception
-	{
-		log.info("ScapeGPT stopped!");
+	protected void shutDown() {
 		clientToolbar.removeNavigation(navButton);
-	}
-
-	@Subscribe
-	public void onGameStateChanged(GameStateChanged gameStateChanged)
-	{
-//		if (gameStateChanged.getGameState() == GameState.LOGGED_IN)
-//		{
-//			client.addChatMessage(ChatMessageType.GAMEMESSAGE, "", "ScapeGPT says " + config.greeting(), null);
-//		}
 	}
 
 	@Provides
