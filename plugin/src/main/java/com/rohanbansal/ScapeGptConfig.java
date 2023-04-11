@@ -7,13 +7,13 @@ import net.runelite.client.config.ConfigItem;
 @ConfigGroup("scapegpt")
 public interface ScapeGptConfig extends Config
 {
-	@ConfigItem(
-		keyName = "greeting",
-		name = "Welcome Greeting",
-		description = "The message to show to the user when they login"
-	)
-	default String greeting()
-	{
-		return "Hello";
-	}
+//	@ConfigItem(
+//		keyName = "prompt",
+//		name = "Ask ScapeGPT anything:",
+//		description = "Text input for receiving the user's question."
+//	)
+//	default String greeting()
+//	{
+//		return "Hello";
+//	}
 }
