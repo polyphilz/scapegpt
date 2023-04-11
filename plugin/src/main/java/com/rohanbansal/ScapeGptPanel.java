@@ -1,10 +1,15 @@
 package com.rohanbansal;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
+import java.io.IOException;
+import javax.inject.Inject;
 import javax.swing.BorderFactory;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -23,9 +28,24 @@ import javax.swing.text.DocumentFilter;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
+import net.runelite.http.api.RuneLiteAPI;
+import static net.runelite.http.api.RuneLiteAPI.JSON;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
+
+import net.runelite.client.account.AccountSession;
+import net.runelite.client.account.SessionManager;
 
 @Slf4j
 class ScapeGptPanel extends PluginPanel {
+    @Inject
+    private SessionManager sessionManager;
+
     private final JLabel promptInputFieldLabel = new JLabel("<html>Ask ScapeGPT anything! Enter text and press Shift+Enter to submit:<br/><br/></html>");
     private final JTextArea promptInputField = new JTextArea();
     private final JTextArea responseArea = new JTextArea();
@@ -97,7 +117,7 @@ class ScapeGptPanel extends PluginPanel {
             @Override
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER && e.isShiftDown()) {
-                    System.out.println(prompt);
+                    promptScapeGptBackend();
                 }
             }
         });
@@ -143,5 +163,48 @@ class ScapeGptPanel extends PluginPanel {
                 }
             }
         });
+    }
+
+    private void promptScapeGptBackend() {
+        AccountSession accountSession = sessionManager.getAccountSession();
+//        if (accountSession != null)
+//        {
+//            System.out.println(accountSession.getUuid());
+//        }
+        System.out.println(prompt);
+//        System.out.println(RuneLiteAPI.RUNELITE_AUTH);
+
+        OkHttpClient client = new OkHttpClient();
+        HttpUrl.Builder apiBase = new HttpUrl.Builder().scheme("http").host("127.0.0.1").port(4747);
+        System.out.println(apiBase);
+        Gson gson = new Gson();
+
+        final HttpUrl url = apiBase.build();
+        System.out.println(url);
+        Request.Builder builder = new Request.Builder();
+
+        JsonObject jsonObject = new JsonObject();
+        jsonObject.addProperty("prompt", prompt);
+
+        Request request = builder
+                .post(RequestBody.create(JSON, gson.toJson(jsonObject)))
+                .url(url)
+                .build();
+
+        try {
+            Response response = client.newCall(request).execute();
+            if (!response.isSuccessful()) throw new Exception("Unexpected code " + response);
+
+            String jsonData = response.body().string();
+            Gson somegson = new Gson();
+            JsonObject ff = somegson.fromJson(jsonData, JsonObject.class);
+            String resValue = ff.get("res").getAsString();
+            System.out.println(resValue);
+            responseArea.setText(resValue);
+        } catch (IOException e) {
+            System.err.println("Error making request: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("Unexpected error: " + e.getMessage());
+        }
     }
 }
