@@ -2,11 +2,15 @@ import chromadb
 
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
-from gpt_index.indices import GPTListIndex
+from gpt_index.indices import GPTSimpleVectorIndex
+from gpt_index.llm_predictor.structured import LLMPredictor
 from gpt_index.readers.schema.base import Document
+from langchain.llms.openai import OpenAIChat
 from typing import List, Tuple
 
 
+# OpenAI model name constants
+CHAT_MODEL = "gpt-3.5-turbo"
 EMBEDDING_MODEL = "text-embedding-ada-002"
 
 
@@ -108,5 +112,11 @@ class ChromaCollectionClient:
             )
             documents.append(document)
 
-        index = GPTListIndex.from_documents(documents)
+        llm_predictor = LLMPredictor(
+            llm=OpenAIChat(temperature=0.6, model_name=CHAT_MODEL)
+        )
+        index = GPTSimpleVectorIndex.from_documents(
+            documents, llm_predictor=llm_predictor
+        )
+
         return index.query(prompt)
