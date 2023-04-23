@@ -58,7 +58,7 @@ class ChromaCollectionClient:
         self._client.delete_collection(name=self._collection_name)
         del self
 
-    def load_summaries(self, summaries: List[Tuple[str, str]]) -> None:
+    def load(self, summaries: List[Tuple[str, str]]) -> None:
         """Loads content into the ChromaDB collection.
 
         Args:
