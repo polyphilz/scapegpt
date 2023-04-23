@@ -19,6 +19,17 @@ class ChromaCollectionClient:
         openai_api_key: str,
         collection_name: str,
     ) -> None:
+        """
+        Args:
+            api_type (str): The type of API to use when connecting to ChromaDB
+                (e.g. 'rest').
+            host (str): The hostname of the database server to connect to
+                (usually an IP address).
+            port (int): The port number to connect to.
+            openai_api_key (str): The OpenAI API key to use.
+            collection_name (str): The name of the ChromaDB collection to use. If
+                unavailable, a new collection will be created with this name.
+        """
         self._client = chromadb.Client(
             Settings(
                 chroma_api_impl=api_type,
@@ -36,10 +47,21 @@ class ChromaCollectionClient:
         )
 
     def delete(self) -> None:
+        """
+        Deletes the specified collection and removes the reference to this
+        instance.
+        """
         self._client.delete_collection(name=self._collection_name)
         del self
 
     def load_summaries(self, summaries: List[Tuple[str, str]]) -> None:
+        """Loads content into the ChromaDB collection.
+
+        Args:
+            summaries (List[Tuple[str, str]]): A list of tuples containing
+                                            filename and content pairs for each
+                                            document summary.
+        """
         filename_ids, documents_content = [], []
         for filename, content in summaries:
             filename_ids.append(filename)
@@ -50,6 +72,24 @@ class ChromaCollectionClient:
         )
 
     def query(self, prompt: str, n_results: int = 3) -> str:
+        """Constructs an answer to a provided prompt based on DB content.
+
+        Uses ChromaDB's similarity search functionality to first return 3
+        documents that are most similar—or in other words, most likely to
+        contain answers—to the provided prompt. The resulting documents are
+        passed to LlamaIndex's (FKA GPTIndex) list index which chunks up the
+        documents appropriately and creates a new index. This index is then
+        queried directly with the prompt, and LlamaIndex uses OpenAI's
+        completion model under the hood to generate a natural-English response
+        using the content from the documents that are part of the index.
+
+        Args:
+            prompt (str): The search prompt to query the collection for.
+            n_results (int): The number of results to return. Defaults to 3.
+
+        Returns:
+            str: The query result as a string.
+        """
         results = self._collection.query(
             query_texts=[prompt],
             n_results=n_results,
