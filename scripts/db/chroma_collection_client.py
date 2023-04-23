@@ -1,19 +1,24 @@
 import chromadb
-import os
 
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from gpt_index.indices import GPTListIndex
 from gpt_index.readers.schema.base import Document
+from typing import List, Tuple
 
-# The directory where content summaries are stored.
-SUMMARIES_DIR = "summaries/"
-# OpenAI API-specific constants.
+
 EMBEDDING_MODEL = "text-embedding-ada-002"
 
 
 class ChromaCollectionClient:
-    def __init__(self, api_type, host, port, openai_api_key, collection_name):
+    def __init__(
+        self,
+        api_type: str,
+        host: str,
+        port: int,
+        openai_api_key: str,
+        collection_name: str,
+    ) -> None:
         self._client = chromadb.Client(
             Settings(
                 chroma_api_impl=api_type,
@@ -30,26 +35,21 @@ class ChromaCollectionClient:
             name=collection_name, embedding_function=openai_ef
         )
 
-    def delete(self):
+    def delete(self) -> None:
         self._client.delete_collection(name=self._collection_name)
         del self
 
-    def load_summaries(self):
-        # Get a list of all content summary docs and store in the collection.
-        summary_docs = [f for f in os.listdir(SUMMARIES_DIR) if f.endswith(".txt")]
-        documents, filename_ids = [], []
-        for filename in summary_docs:
-            filename_ids.append(filename.replace(".txt", ""))
-            with open(SUMMARIES_DIR + filename, "r") as file:
-                contents = file.read()
-                documents.append(contents)
-
+    def load_summaries(self, summaries: List[Tuple[str, str]]) -> None:
+        filename_ids, documents_content = [], []
+        for filename, content in summaries:
+            filename_ids.append(filename)
+            documents_content.append(content)
         self._collection.add(
-            documents=documents,
+            documents=documents_content,
             ids=filename_ids,
         )
 
-    def query(self, prompt, n_results=3):
+    def query(self, prompt: str, n_results: int = 3) -> str:
         results = self._collection.query(
             query_texts=[prompt],
             n_results=n_results,
