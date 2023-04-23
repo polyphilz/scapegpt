@@ -39,7 +39,8 @@ public class ScapeGptPlugin extends Plugin
 
 	@Override
 	protected void startUp() {
-		apiUrl = new HttpUrl.Builder().scheme("http").host("127.0.0.1").port(4747).build();
+//		apiUrl = new HttpUrl.Builder().scheme("http").host("3.238.6.223").port(8080).build();
+		apiUrl = new HttpUrl.Builder().scheme("http").host("44.211.86.102").build();
 
 		AccountSession accountSession = sessionManager.getAccountSession();
 		System.out.println(accountSession.getUuid());

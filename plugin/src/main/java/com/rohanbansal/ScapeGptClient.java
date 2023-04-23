@@ -55,14 +55,21 @@ public class ScapeGptClient {
             String jsonData = response.body().string();
             Gson somegson = new Gson();
             JsonObject ff = somegson.fromJson(jsonData, JsonObject.class);
-            String resValue = ff.get("res").getAsString();
+            String resValue = ff.get("res").getAsString().trim();
             System.out.println(resValue);
             return resValue;
         } catch (IOException e) {
-            System.err.println("Error making request: " + e.getMessage());
+            String errorMessage = e.getMessage();
+            System.err.println("Error making request: " + errorMessage);
+            return "An unknown error occurred. Please try again in 1 minute.";
         } catch (Exception e) {
-            System.err.println("Unexpected error: " + e.getMessage());
+            String errorMessage = e.getMessage();
+            System.err.println("Unexpected error: " + errorMessage);
+            if (errorMessage.contains("code=429")) {
+                return "Too many requests! There is a limit of 3 queries per minute, and 30 queries per day.";
+            } else {
+                return "An unknown error occurred. Please try again in 1 minute.";
+            }
         }
-        return "";
     }
 }
