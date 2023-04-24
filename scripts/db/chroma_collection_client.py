@@ -108,7 +108,7 @@ class ChromaCollectionClient:
             num_tokens = len(encoding.encode(string))
             return num_tokens
 
-        num_tokens = num_tokens_from_string(prompt, EMBEDDING_MODEL)
+        num_tokens = num_tokens_from_string(prompt, "cl100k_base")
         if num_tokens > MAX_TOKENS_FOR_PROMPT:
             raise ValueError(f"Prompt too long: {prompt} has {num_tokens} tokens.")
 
