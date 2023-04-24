@@ -1,3 +1,14 @@
+# RuneLite Java/plugin stuff
+.gradle
+build
+.idea/
+.project
+.settings/
+.classpath
+nbactions.xml
+nb-configuration.xml
+nbproject/
+
 # OS's
 .DS_Store
 Desktop.ini
