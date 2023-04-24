@@ -4,7 +4,6 @@ import tiktoken
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from gpt_index.indices.list.base import GPTListIndex
-from gpt_index.indices.prompt_helper import PromptHelper
 from gpt_index.indices.service_context import ServiceContext
 from gpt_index.langchain_helpers.chain_wrapper import LLMPredictor
 from gpt_index.readers.schema.base import Document
@@ -130,17 +129,13 @@ class ChromaCollectionClient:
             )
             documents.append(document)
 
-        max_input_size = 3840
         num_outputs = 256
-        prompt_helper = PromptHelper(max_input_size, num_outputs)
         llm_predictor = LLMPredictor(
             llm=ChatOpenAI(
                 temperature=0.6, model_name=CHAT_MODEL, max_tokens=num_outputs
             )
         )
-        service_context = ServiceContext.from_defaults(
-            llm_predictor=llm_predictor, prompt_helper=prompt_helper
-        )
+        service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
         index = GPTListIndex.from_documents(
             documents,
             service_context=service_context,
