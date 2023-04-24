@@ -4,14 +4,12 @@ import sys
 
 from bs4 import BeautifulSoup
 
-from utils.content_scraper import get_content
-from utils.infobox_scraper import get_infobox
+from utils.wiki_content_scraper import get_content
+from utils.wiki_infobox_scraper import get_infobox
 
 
 OSRS_WIKI_URL_BASE = "https://oldschool.runescape.wiki"
-SLUGS_DIR = "slugs/"
 SLUGS_DEV_FILE = "test_slugs.txt"
-SUMMARIES_DIR = "summaries/"
 PROBLEM_PAGES = [
     "calc",
     "screenshots",
@@ -38,23 +36,42 @@ SCRAPE_CATEGORIES = [
 ]
 
 
-def get_slugs(dev=False):
+def get_slugs(dev: bool = False):
+    """Extracts slugs from the 'slugs' directory.
+
+    Args:
+        dev (bool): If True, only returns the slugs from the 'test_slugs.txt'
+            file.
+
+    Returns:
+        list: A list of all slugs. The list may contain duplicate slugs, but
+            this doesn't matter as generated summaries will simply be
+            overwritten.
+
+    Raises:
+        FileNotFoundError: If the 'slugs' directory or 'test_slugs.txt' file is
+            not found.
+    """
     slugs = []
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    three_dirs_up = os.path.join(current_dir, "..", "..", "..")
+    slugs_dir = os.path.join(three_dirs_up, "slugs")
 
     if dev:
-        with open(SLUGS_DEV_FILE) as file:
+        filename = os.path.join(slugs_dir, SLUGS_DEV_FILE)
+        with open(filename) as file:
             for line in file:
                 slugs.append(line.strip())
         return slugs
 
-    for filename in os.listdir(SLUGS_DIR):
+    for filename in os.listdir(slugs_dir):
         if not filename.endswith(".txt"):
             continue
 
         if filename.replace(".txt", "") not in SCRAPE_CATEGORIES:
             continue
 
-        with open(SLUGS_DIR + filename, "r") as file:
+        with open(os.path.join(slugs_dir, filename), "r") as file:
             for line in file:
                 # Hacky way of skipping specific problem-pages.
                 should_skip_slug = False
@@ -68,13 +85,21 @@ def get_slugs(dev=False):
     return slugs
 
 
-def generate_article_summary(slug, slug_number):
-    """Generates a summary of the article.
+def generate_article_summary(slug: str, slug_number: int):
+    """Generate a summary of an article.
 
     Scraping any article is broken down into 3 sections:
-      1. The article title
-      2. The article's infobox (right-hand side metadata/information)
-      3. The article's core content
+        1. The article title
+        2. The article's infobox (right-hand side metadata/information)
+        3. The article's core content
+
+    Args:
+        slug (str): The slug of the article.
+        slug_number (int): The number of the slug. Purely for dev purposes (for
+            seeing how many articles have been scraped).
+
+    Returns:
+        None
     """
 
     def _get_title():
@@ -94,12 +119,19 @@ def generate_article_summary(slug, slug_number):
     content = get_content(soup, title)
 
     summary = f"{title}\n\n{infobox}\n{content}"
-    if not os.path.exists(SUMMARIES_DIR):
-        os.makedirs(SUMMARIES_DIR)
+    # Creates the summaries/ directory at the root of the project if it doesn't
+    # already exist. Then, uses a cleaned version of the title of the article
+    # to create the text file corresponding to the summary of that article
+    # within the summaries/ directory.
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    three_dirs_up = os.path.join(current_dir, "..", "..", "..")
+    summaries_dir = os.path.join(three_dirs_up, "summaries")
+    os.makedirs(summaries_dir, exist_ok=True)
     filename = (
         title.lower().replace(" ", "-").replace("'", "").replace("/", "|") + ".txt"
     )
-    with open(SUMMARIES_DIR + filename, "w", encoding="utf-8") as f:
+    filename = os.path.join(summaries_dir, filename)
+    with open(filename, "w", encoding="utf-8") as f:
         f.write(summary)
 
 
