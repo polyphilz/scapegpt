@@ -116,14 +116,7 @@ class ChromaCollectionClient:
 
         max_input_size = 3840
         num_outputs = 256
-        max_chunk_overlap = 20
-        chunk_size_limit = 600
-        prompt_helper = PromptHelper(
-            max_input_size,
-            num_outputs,
-            max_chunk_overlap,
-            chunk_size_limit=chunk_size_limit,
-        )
+        prompt_helper = PromptHelper(max_input_size, num_outputs)
         llm_predictor = LLMPredictor(
             llm=ChatOpenAI(
                 temperature=0.6, model_name=CHAT_MODEL, max_tokens=num_outputs
