@@ -3,7 +3,10 @@ import chromadb
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
 from gpt_index.indices.vector_store import GPTSimpleVectorIndex
-from gpt_index.llm_predictor.base import LLMPredictor
+from gpt_index.indices.service_context import ServiceContext
+from gpt_index.langchain_helpers.chain_wrapper import LLMPredictor
+
+# from gpt_index.llm_predictor.base import LLMPredictor
 from gpt_index.readers.schema.base import Document
 from langchain.chat_models import ChatOpenAI
 from typing import List, Tuple
@@ -115,8 +118,10 @@ class ChromaCollectionClient:
         llm_predictor = LLMPredictor(
             llm=ChatOpenAI(temperature=0.6, model_name=CHAT_MODEL)
         )
+        service_context = ServiceContext.from_defaults(llm_predictor=llm_predictor)
         index = GPTSimpleVectorIndex.from_documents(
-            documents, llm_predictor=llm_predictor
+            documents,
+            service_context=service_context,
         )
 
         return index.query(prompt)
