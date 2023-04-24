@@ -5,7 +5,7 @@ from chromadb.utils import embedding_functions
 from gpt_index.indices.vector_store import GPTSimpleVectorIndex
 from gpt_index.llm_predictor.base import LLMPredictor
 from gpt_index.readers.schema.base import Document
-from langchain.llms.openai import OpenAIChat
+from langchain.chat_models import ChatOpenAI
 from typing import List, Tuple
 
 
@@ -113,7 +113,7 @@ class ChromaCollectionClient:
             documents.append(document)
 
         llm_predictor = LLMPredictor(
-            llm=OpenAIChat(temperature=0.6, model_name=CHAT_MODEL)
+            llm=ChatOpenAI(temperature=0.6, model_name=CHAT_MODEL)
         )
         index = GPTSimpleVectorIndex.from_documents(
             documents, llm_predictor=llm_predictor
