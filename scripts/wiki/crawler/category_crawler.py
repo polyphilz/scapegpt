@@ -2,11 +2,12 @@ import os
 import requests
 
 from bs4 import BeautifulSoup
+from typing import Dict
 
 
 OSRS_WIKI_URL_BASE = "https://oldschool.runescape.wiki"
+# The "main" category page that contains links to all other sub-categories.
 OSRS_WIKI_CATEGORY_CATALOG = "https://oldschool.runescape.wiki/w/Category:Content"
-SLUGS_FILE = "slugs.txt"
 
 # Categories containing pages that (probably) aren't worth indexing.
 SKIPPED_CATEGORIES = [
@@ -46,15 +47,28 @@ CATEGORIES_REQUIRING_SUBCATEGORY_EXPLORATION = [
 ]
 
 
-def collect_category_slugs(url, categories_to_slugs):
+def collect_category_slugs(url, categories_to_slugs: Dict[str, str]):
+    """Maps category names to their respective slugs.
+
+    Arguments:
+    - url (str): The URL of the category page to scrape.
+    - categories_to_slugs (dict): A dictionary of category names to category
+        slugs.
+
+    Raises:
+    - Exception: If no categories are found in the category page.
+
+    Returns:
+    - None
+    """
     res = requests.get(url)
     soup = BeautifulSoup(res.text, "html.parser")
 
     page_categories = soup.find("div", class_="mw-category")
     if not page_categories:
         # This state would only be reachable if:
-        #   • The wiki category catalog HTML has changed
-        #   • The URL for the category catalog has changed
+        #   - The wiki category catalog HTML has changed
+        #   - The URL for the category catalog has changed
         raise Exception(f"No categories found\nURL - {url}")
 
     for child in page_categories.findChildren():
@@ -76,7 +90,21 @@ def collect_category_slugs(url, categories_to_slugs):
             categories_to_slugs[category] = category_slug
 
 
-def generate_slug_file(category, slug):
+def generate_slug_file(category: str, slug: str):
+    """
+    Generate a text file containing slugs for all articles listed under a given
+    category on the Old School RuneScape Wiki.
+
+    Args:
+        category (str): The name of the category to generate slugs for.
+        slug (str): The slug of an article in the category to start with.
+
+    Raises:
+        Exception: If no articles are found for the given category.
+
+    Returns:
+        None
+    """
     url = OSRS_WIKI_URL_BASE + slug
 
     slugs_for_category = []
@@ -112,8 +140,14 @@ def generate_slug_file(category, slug):
         if not has_next_page:
             break
 
-    filename = f"slugs/{category}.txt"
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
+    # Creates the slugs/ directory at the root of the project if it doesn't
+    # already exist, and then for each category, creates a txt file for that
+    # category containing slugs for each page listed within that category.
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    three_dirs_up = os.path.join(current_dir, "..", "..", "..")
+    slugs_dir = os.path.join(three_dirs_up, "slugs")
+    os.makedirs(slugs_dir, exist_ok=True)
+    filename = os.path.join(slugs_dir, f"{category}.txt")
     with open(filename, "w") as f:
         for slug in slugs_for_category:
             f.write(slug + "\n")
