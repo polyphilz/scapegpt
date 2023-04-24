@@ -2,8 +2,11 @@ package com.rohanbansal;
 
 import com.google.gson.Gson;
 import com.google.inject.Provides;
+
 import java.awt.image.BufferedImage;
+import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
+
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.account.AccountSession;
 import net.runelite.client.account.SessionManager;
@@ -17,64 +20,53 @@ import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 
 @Slf4j
-@PluginDescriptor(
-	name = "ScapeGPT",
-	loadWhenOutdated = true
-)
-public class ScapeGptPlugin extends Plugin
-{
-	@Inject
-	private ClientToolbar clientToolbar;
+@PluginDescriptor(name = "ScapeGPT", loadWhenOutdated = true)
+public class ScapeGptPlugin extends Plugin {
+    private static final String HOST = "44.211.86.102";  // Server IP address that handles requests
+    private static final String ENDPOINT = "api/v1/query";
+    private static final String LOGO = "scapegpt-icon.png";
+    private static final int HTTP_TIMEOUT_SECONDS = 45;  // Both connection and waiting for response
+    @Inject
+    private ClientToolbar clientToolbar;
+    @Inject
+    private ScapeGptConfig config;
+    @Inject
+    private SessionManager sessionManager;
+    private ScapeGptClient scapeGptClient;
+    private ScapeGptPanel panel;
+    private NavigationButton navButton;
+    private HttpUrl apiUrl;
 
-	@Inject
-	private ScapeGptConfig config;
+    @Override
+    protected void startUp() {
+        apiUrl = new HttpUrl.Builder().scheme("http").host(HOST).addPathSegments(ENDPOINT).build();
+        OkHttpClient httpClient = new OkHttpClient.Builder().connectTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS).readTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS).build();
+        scapeGptClient = new ScapeGptClient(httpClient, apiUrl, new Gson());
 
-	@Inject
-	private SessionManager sessionManager;
-
-	private ScapeGptClient scapeGptClient;
-	private ScapeGptPanel panel;
-	private NavigationButton navButton;
-	private HttpUrl apiUrl;
-
-	@Override
-	protected void startUp() {
-//		apiUrl = new HttpUrl.Builder().scheme("http").host("3.238.6.223").port(8080).build();
-		apiUrl = new HttpUrl.Builder().scheme("http").host("44.211.86.102").build();
-
-		AccountSession accountSession = sessionManager.getAccountSession();
-		System.out.println(accountSession.getUuid());
-
-		scapeGptClient = new ScapeGptClient(new OkHttpClient(), apiUrl, new Gson());
+        AccountSession accountSession = sessionManager.getAccountSession();
         if (accountSession != null) {
             scapeGptClient.setUuid(accountSession.getUuid());
         } else {
             scapeGptClient.setUuid(null);
         }
 
-		panel = injector.getInstance(ScapeGptPanel.class);
-		panel.init(scapeGptClient);
+        panel = injector.getInstance(ScapeGptPanel.class);
+        panel.init(scapeGptClient);
 
-		final BufferedImage icon = ImageUtil.loadImageResource(getClass(), "scapegpt-icon.png");
+        final BufferedImage icon = ImageUtil.loadImageResource(getClass(), LOGO);
 
-		navButton = NavigationButton.builder()
-				.tooltip("ScapeGPT")
-				.icon(icon)
-				.priority(13)
-				.panel(panel)
-				.build();
+        navButton = NavigationButton.builder().tooltip("ScapeGPT").icon(icon).priority(13).panel(panel).build();
 
-		clientToolbar.addNavigation(navButton);
-	}
+        clientToolbar.addNavigation(navButton);
+    }
 
-	@Override
-	protected void shutDown() {
-		clientToolbar.removeNavigation(navButton);
-	}
+    @Override
+    protected void shutDown() {
+        clientToolbar.removeNavigation(navButton);
+    }
 
-	@Provides
-	ScapeGptConfig provideConfig(ConfigManager configManager)
-	{
-		return configManager.getConfig(ScapeGptConfig.class);
-	}
+    @Provides
+    ScapeGptConfig provideConfig(ConfigManager configManager) {
+        return configManager.getConfig(ScapeGptConfig.class);
+    }
 }

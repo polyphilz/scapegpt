@@ -1,15 +1,10 @@
 package com.rohanbansal;
 
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
-import java.io.IOException;
-import javax.inject.Inject;
 import javax.swing.BorderFactory;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
@@ -25,15 +20,14 @@ import javax.swing.text.Document;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.DocumentFilter;
+
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.client.ui.ColorScheme;
 import net.runelite.client.ui.PluginPanel;
-import net.runelite.http.api.RuneLiteAPI;
-import static net.runelite.http.api.RuneLiteAPI.JSON;
 
 @Slf4j
 class ScapeGptPanel extends PluginPanel {
-    private final JLabel promptInputFieldLabel = new JLabel("<html>Ask ScapeGPT anything! Enter text and press Shift+Enter to submit:<br/><br/></html>");
+    private final JLabel promptInputFieldLabel = new JLabel("<html>Ask ScapeGPT anything! Enter text and press <b>Shift+Enter</b> to submit.<br/><br/>Please keep in mind there is a limit of 30 questions per day, and 3 per minute.<br/><br/></html>");
     private final JTextArea promptInputField = new JTextArea();
     private final JTextArea responseArea = new JTextArea();
 
@@ -126,7 +120,8 @@ class ScapeGptPanel extends PluginPanel {
             }
 
             @Override
-            public void changedUpdate(DocumentEvent e) {}  // Unused
+            public void changedUpdate(DocumentEvent e) {
+            }  // Unused
         });
     }
 

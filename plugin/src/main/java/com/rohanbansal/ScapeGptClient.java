@@ -2,8 +2,10 @@ package com.rohanbansal;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
+
 import java.io.IOException;
 import java.util.UUID;
+
 import lombok.Setter;
 import net.runelite.http.api.RuneLiteAPI;
 import okhttp3.Call;
@@ -31,12 +33,8 @@ public class ScapeGptClient {
     }
 
     public String getResponse(String prompt) {
-        System.out.println(uuid);
-        System.out.println(prompt);
-
         Request.Builder builder = new Request.Builder();
-        if (uuid != null)
-        {
+        if (uuid != null) {
             builder.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString());
         }
 
@@ -56,7 +54,6 @@ public class ScapeGptClient {
             Gson somegson = new Gson();
             JsonObject ff = somegson.fromJson(jsonData, JsonObject.class);
             String resValue = ff.get("res").getAsString().trim();
-            System.out.println(resValue);
             return resValue;
         } catch (IOException e) {
             String errorMessage = e.getMessage();
