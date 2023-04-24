@@ -1,4 +1,5 @@
 import chromadb
+import tiktoken
 
 from chromadb.config import Settings
 from chromadb.utils import embedding_functions
@@ -11,9 +12,10 @@ from langchain.chat_models import ChatOpenAI
 from typing import List, Tuple
 
 
-# OpenAI model name constants
+# OpenAI constants
 CHAT_MODEL = "gpt-3.5-turbo"
 EMBEDDING_MODEL = "text-embedding-ada-002"
+MAX_TOKENS_FOR_PROMPT = 1024
 
 
 class ChromaCollectionClient:
@@ -80,14 +82,17 @@ class ChromaCollectionClient:
     def query(self, prompt: str, n_results: int = 3) -> str:
         """Constructs an answer to a provided prompt based on DB content.
 
-        Uses ChromaDB's similarity search functionality to first return 3
-        documents that are most similar—or in other words, most likely to
-        contain answers—to the provided prompt. The resulting documents are
-        passed to LlamaIndex's (FKA GPTIndex) list index which chunks up the
-        documents appropriately and creates a new index. This index is then
-        queried directly with the prompt, and LlamaIndex uses OpenAI's
-        completion model under the hood to generate a natural-English response
-        using the content from the documents that are part of the index.
+        How it works:
+            1. Tokenize the prompt to ensure it's not too long. If it is, this
+               should be indicated to the user
+            2. Queries ChromaDB to return the 3 most similar documents to the
+               prompt
+            3. LlamaIndex is used to construct a list index out of the 3
+               documents
+            4. This index is queried with the prompt, and the documents' content
+               injected as context
+            5. LlamaIndex uses OpenAI's chat model under the hood to generate
+               a response to the prompt using the documents' content
 
         Args:
             prompt (str): The search prompt to query the collection for.
@@ -96,6 +101,17 @@ class ChromaCollectionClient:
         Returns:
             str: The query result as a string.
         """
+
+        def num_tokens_from_string(string: str, encoding_name: str) -> int:
+            """Returns the number of tokens in a text string."""
+            encoding = tiktoken.get_encoding(encoding_name)
+            num_tokens = len(encoding.encode(string))
+            return num_tokens
+
+        num_tokens = num_tokens_from_string(prompt, EMBEDDING_MODEL)
+        if num_tokens > MAX_TOKENS_FOR_PROMPT:
+            raise ValueError(f"Prompt too long: {prompt} has {num_tokens} tokens.")
+
         results = self._collection.query(
             query_texts=[prompt],
             n_results=n_results,
