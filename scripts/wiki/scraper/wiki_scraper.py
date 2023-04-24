@@ -16,23 +16,23 @@ PROBLEM_PAGES = [
     "user:",
 ]
 # This is just for dev purposes. It allows for only scraping specific
-# categories.
+# categories. If you _don't_ want to scrape a category, comment it out.
 SCRAPE_CATEGORIES = [
-    # "Combat",
-    # "Combat Achievements",
-    # "Community",
-    # "Content with player credits",
-    # "Distraction and Diversion",
-    # "Game info",
-    # "Glitches",
-    # "Guides",
+    "Combat",
+    "Combat Achievements",
+    "Community",
+    "Content with player credits",
+    "Distraction and Diversion",
+    "Game info",
+    "Glitches",
+    "Guides",
     "Gods",
-    # "Monsters",
-    # "Non-player characters",
-    # "Organisations",
-    # "Pets",
-    # "Races",
-    # "Items",
+    "Monsters",
+    "Non-player characters",
+    "Organisations",
+    "Pets",
+    "Races",
+    "Items",
 ]
 
 
