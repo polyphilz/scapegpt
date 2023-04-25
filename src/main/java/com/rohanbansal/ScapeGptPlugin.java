@@ -32,6 +32,10 @@ public class ScapeGptPlugin extends Plugin {
     private ScapeGptConfig config;
     @Inject
     private SessionManager sessionManager;
+    @Inject
+    private Gson gson;
+    @Inject
+    private OkHttpClient httpClient;
     private ScapeGptClient scapeGptClient;
     private ScapeGptPanel panel;
     private NavigationButton navButton;
@@ -40,8 +44,7 @@ public class ScapeGptPlugin extends Plugin {
     @Override
     protected void startUp() {
         apiUrl = new HttpUrl.Builder().scheme("http").host(HOST).addPathSegments(ENDPOINT).build();
-        OkHttpClient httpClient = new OkHttpClient.Builder().connectTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS).readTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS).build();
-        scapeGptClient = new ScapeGptClient(httpClient, apiUrl, new Gson());
+        scapeGptClient = new ScapeGptClient(httpClient.newBuilder().connectTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS).readTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS).build(), apiUrl, gson);
 
         AccountSession accountSession = sessionManager.getAccountSession();
         if (accountSession != null) {
