@@ -31,3 +31,4 @@ __pycache__/
 slugs/
 test_slugs.txt
 summaries/
+test_summaries/
