@@ -15,6 +15,7 @@ from typing import List, Tuple
 CHAT_MODEL = "gpt-3.5-turbo"
 EMBEDDING_MODEL = "text-embedding-ada-002"
 MAX_TOKENS_FOR_PROMPT = 1024
+MAX_TOKENS_FOR_EMBEDDING = 8190
 
 
 class ChromaCollectionClient:
@@ -64,14 +65,28 @@ class ChromaCollectionClient:
     def load(self, summaries: List[Tuple[str, str]]) -> None:
         """Loads content into the ChromaDB collection.
 
+        If a given piece of content exceeds the max embedding token size of 8190
+        tokens, the content will be continuously be truncated until it fits.
+        Truncation adheres to the Fibonacci sequence (i.e. first 1 word is cut,
+        then 2, then 3, then 5, then 8 and so on...).
+
         Args:
             summaries (List[Tuple[str, str]]): A list of tuples containing
                                             filename and content pairs for each
                                             document summary.
         """
         filename_ids, documents_content = [], []
+        f1, f2 = 0, 1
         for filename, content in summaries:
             filename_ids.append(filename)
+            # TODO(rbnsl): Is there a better way of doing this?
+            while (
+                self._num_tokens_from_string(content, "cl100k_base")
+                > MAX_TOKENS_FOR_EMBEDDING
+            ):
+                content = content.rsplit(" ", f2)[0]
+                f_tmp, f1 = f1, f2
+                f2 += f_tmp
             documents_content.append(content)
         self._collection.add(
             documents=documents_content,
@@ -100,14 +115,7 @@ class ChromaCollectionClient:
         Returns:
             str: The query result as a string.
         """
-
-        def num_tokens_from_string(string: str, encoding_name: str) -> int:
-            """Returns the number of tokens in a text string."""
-            encoding = tiktoken.get_encoding(encoding_name)
-            num_tokens = len(encoding.encode(string))
-            return num_tokens
-
-        num_tokens = num_tokens_from_string(prompt, "cl100k_base")
+        num_tokens = self._num_tokens_from_string(prompt, "cl100k_base")
         if num_tokens > MAX_TOKENS_FOR_PROMPT:
             raise ValueError(f"Prompt too long: {prompt} has {num_tokens} tokens.")
 
@@ -142,3 +150,9 @@ class ChromaCollectionClient:
         )
 
         return index.query(prompt, mode="retrieve")
+
+    def _num_tokens_from_string(string: str, encoding_name: str) -> int:
+        """Returns the number of tokens in a text string."""
+        encoding = tiktoken.get_encoding(encoding_name)
+        num_tokens = len(encoding.encode(string))
+        return num_tokens
