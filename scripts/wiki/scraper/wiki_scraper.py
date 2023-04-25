@@ -58,7 +58,7 @@ def get_slugs(dev: bool = False):
     slugs_dir = os.path.join(three_dirs_up, "slugs")
 
     if dev:
-        filename = os.path.join(slugs_dir, SLUGS_DEV_FILE)
+        filename = os.path.join(three_dirs_up, SLUGS_DEV_FILE)
         with open(filename) as file:
             for line in file:
                 slugs.append(line.strip())
@@ -85,7 +85,7 @@ def get_slugs(dev: bool = False):
     return slugs
 
 
-def generate_article_summary(slug: str, slug_number: int):
+def generate_article_summary(dev: bool, slug: str, slug_number: int):
     """Generate a summary of an article.
 
     Scraping any article is broken down into 3 sections:
@@ -125,7 +125,10 @@ def generate_article_summary(slug: str, slug_number: int):
     # within the summaries/ directory.
     current_dir = os.path.dirname(os.path.abspath(__file__))
     three_dirs_up = os.path.join(current_dir, "..", "..", "..")
-    summaries_dir = os.path.join(three_dirs_up, "summaries")
+    if dev:
+        summaries_dir = os.path.join(three_dirs_up, "test_summaries")
+    else:
+        summaries_dir = os.path.join(three_dirs_up, "summaries")
     os.makedirs(summaries_dir, exist_ok=True)
     filename = (
         title.lower().replace(" ", "-").replace("'", "").replace("/", "|") + ".txt"
@@ -142,7 +145,7 @@ def main():
         dev = True
     all_slugs = get_slugs(dev)
     for i, slug in enumerate(all_slugs):
-        generate_article_summary(slug, i)
+        generate_article_summary(dev, slug, i)
 
 
 if __name__ == "__main__":
