@@ -96,7 +96,7 @@ def get_scanned_slugs(dev: bool = False):
     Returns:
         A set of slugs (strings) with the .txt extension removed and certain
         characters replaced by their URL-encoded equivalents
-        (e.g. "‰" -> "/", "'" -> "%27").
+        (e.g. "|" -> "/", "'" -> "%27").
     """
     current_dir = os.path.dirname(os.path.abspath(__file__))
     three_dirs_up = os.path.join(current_dir, "..", "..", "..")
@@ -113,7 +113,7 @@ def get_scanned_slugs(dev: bool = False):
 
             scanned_slugs.add(
                 "/w/"
-                + filename.replace("‰", "/").replace("'", "%27").replace(".txt", "")
+                + filename.replace("|", "/").replace("'", "%27").replace(".txt", "")
             )
     except FileNotFoundError:
         pass
@@ -168,7 +168,7 @@ def generate_article_summary(dev: bool, slug: str, slug_number: int):
     else:
         summaries_dir = os.path.join(three_dirs_up, "summaries")
     os.makedirs(summaries_dir, exist_ok=True)
-    filename = slug[3:].replace("/", "‰").replace("%27", "'") + ".txt"
+    filename = slug[3:].replace("/", "|").replace("%27", "'") + ".txt"
     filename = os.path.join(summaries_dir, filename)
     with open(filename, "w", encoding="utf-8") as f:
         f.write(summary)
