@@ -105,7 +105,8 @@ def generate_article_summary(dev: bool, slug: str, slug_number: int):
     def _get_title():
         title = soup.find("h1", id="firstHeading")
         if not title:
-            raise Exception(f"No title found for slug: {slug}")
+            print(f"No title found for slug: {slug}")
+            return None
         return title.text.strip()
 
     url = OSRS_WIKI_URL_BASE + slug
@@ -114,6 +115,8 @@ def generate_article_summary(dev: bool, slug: str, slug_number: int):
     soup = BeautifulSoup(res.content, "html.parser")
 
     title = _get_title()
+    if not title:
+        title = slug[3:]
     print(f"{slug_number}: {title} in progress...")
     infobox = get_infobox(soup, title)
     content = get_content(soup, title)
