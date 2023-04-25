@@ -8,8 +8,6 @@ import java.util.UUID;
 
 import lombok.Setter;
 import net.runelite.http.api.RuneLiteAPI;
-import okhttp3.Call;
-import okhttp3.Callback;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -51,10 +49,8 @@ public class ScapeGptClient {
             if (!response.isSuccessful()) throw new Exception("Unexpected code " + response);
 
             String jsonData = response.body().string();
-            Gson somegson = new Gson();
-            JsonObject ff = somegson.fromJson(jsonData, JsonObject.class);
-            String resValue = ff.get("res").getAsString().trim();
-            return resValue;
+            JsonObject json = gson.newBuilder().create().fromJson(jsonData, JsonObject.class);
+            return json.get("res").getAsString().trim();
         } catch (IOException e) {
             String errorMessage = e.getMessage();
             System.err.println("Error making request: " + errorMessage);
