@@ -70,11 +70,26 @@ class ChromaCollectionClient:
         Truncation adheres to the Fibonacci sequence (i.e. first 1 word is cut,
         then 2, then 3, then 5, then 8 and so on...).
 
+        Files are added in small batches such that any problem documents can be
+        handled separately.
+
         Args:
             summaries (List[Tuple[str, str]]): A list of tuples containing
                                             filename and content pairs for each
                                             document summary.
         """
+
+        def _add_batch_to_collection(
+            documents: List[str], ids: List[str], batch_num: int
+        ) -> None:
+            try:
+                self._collection.add(documents=documents, ids=ids)
+            except:
+                print()
+                print(f"Batch {batch_num} failed! Problematic document(s):")
+                print(ids)
+                print()
+
         filename_ids, documents_content = [], []
         for filename, content in summaries:
             filename_ids.append(filename)
@@ -89,10 +104,19 @@ class ChromaCollectionClient:
                     content, "cl100k_base"
                 )
             documents_content.append(content)
-        self._collection.add(
-            documents=documents_content,
-            ids=filename_ids,
-        )
+
+        batch_num, batch_size = 1, 10
+        for i in range(0, len(filename_ids), batch_size):
+            content_batch = documents_content[i : i + batch_size]
+            ids_batch = filename_ids[i : i + batch_size]
+            _add_batch_to_collection(content_batch, ids_batch, batch_num)
+            batch_num += 1
+
+        remaining = len(filename_ids) % batch_size
+        if remaining > 0:
+            content_batch = documents_content[-remaining:]
+            ids_batch = filename_ids[-remaining:]
+            _add_batch_to_collection(content_batch, ids_batch, batch_num)
 
     def query(self, prompt: str, n_results: int = 3) -> str:
         """Constructs an answer to a provided prompt based on DB content.
