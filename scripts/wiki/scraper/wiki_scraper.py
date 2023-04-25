@@ -44,9 +44,7 @@ def get_slugs(dev: bool = False):
             file.
 
     Returns:
-        list: A list of all slugs. The list may contain duplicate slugs, but
-            this doesn't matter as generated summaries will simply be
-            overwritten.
+        set: A set of all slugs.
 
     Raises:
         FileNotFoundError: If the 'slugs' directory or 'test_slugs.txt' file is
@@ -82,7 +80,44 @@ def get_slugs(dev: bool = False):
                 if should_skip_slug:
                     continue
                 slugs.append(line.strip())
-    return slugs
+
+    return set(slugs)
+
+
+def get_scanned_slugs(dev: bool = False):
+    """
+    Returns a set of slugs (strings) that correspond to the names of the text
+    files in the summaries or test_summaries directories.
+
+    Args:
+        dev (bool): If True, looks for files in the test_summaries directory
+        instead of the summaries directory.
+
+    Returns:
+        A set of slugs (strings) with the .txt extension removed and certain
+        characters replaced by their URL-encoded equivalents
+        (e.g. "‰" -> "/", "'" -> "%27").
+    """
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    three_dirs_up = os.path.join(current_dir, "..", "..", "..")
+    if dev:
+        summaries_dir = os.path.join(three_dirs_up, "test_summaries")
+    else:
+        summaries_dir = os.path.join(three_dirs_up, "summaries")
+
+    scanned_slugs = set()
+    try:
+        for filename in os.listdir(summaries_dir):
+            if not filename.endswith(".txt"):
+                continue
+
+            scanned_slugs.add(
+                "/w/"
+                + filename.replace("‰", "/").replace("'", "%27").replace(".txt", "")
+            )
+    except FileNotFoundError:
+        pass
+    return scanned_slugs
 
 
 def generate_article_summary(dev: bool, slug: str, slug_number: int):
@@ -133,21 +168,26 @@ def generate_article_summary(dev: bool, slug: str, slug_number: int):
     else:
         summaries_dir = os.path.join(three_dirs_up, "summaries")
     os.makedirs(summaries_dir, exist_ok=True)
-    filename = (
-        title.lower().replace(" ", "-").replace("'", "").replace("/", "|") + ".txt"
-    )
+    filename = slug[3:].replace("/", "‰").replace("%27", "'") + ".txt"
     filename = os.path.join(summaries_dir, filename)
     with open(filename, "w", encoding="utf-8") as f:
         f.write(summary)
 
 
 def main():
+    # TODO(rbnsl): Clean up this arg parsing logic.
     args = sys.argv[1:]
-    dev = False
+    dev, rescan = False, True
     if len(args) > 0 and args[0] == "dev":
         dev = True
+    if len(args) > 1 and args[1] == "norescan":
+        rescan = False
     all_slugs = get_slugs(dev)
+    scanned_slugs = get_scanned_slugs(dev)
     for i, slug in enumerate(all_slugs):
+        if not rescan and slug in scanned_slugs:
+            continue
+
         generate_article_summary(dev, slug, i)
 
 
