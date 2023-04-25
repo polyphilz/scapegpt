@@ -76,17 +76,18 @@ class ChromaCollectionClient:
                                             document summary.
         """
         filename_ids, documents_content = [], []
-        f1, f2 = 0, 1
         for filename, content in summaries:
             filename_ids.append(filename)
             # TODO(rbnsl): Is there a better way of doing this?
-            while (
-                self._num_tokens_from_string(content, "cl100k_base")
-                > MAX_TOKENS_FOR_EMBEDDING
-            ):
+            content_token_count = self._num_tokens_from_string(content, "cl100k_base")
+            f1, f2 = 0, 1
+            while content_token_count > MAX_TOKENS_FOR_EMBEDDING:
                 content = content.rsplit(" ", f2)[0]
                 f_tmp, f1 = f1, f2
                 f2 += f_tmp
+                content_token_count = self._num_tokens_from_string(
+                    content, "cl100k_base"
+                )
             documents_content.append(content)
         self._collection.add(
             documents=documents_content,
