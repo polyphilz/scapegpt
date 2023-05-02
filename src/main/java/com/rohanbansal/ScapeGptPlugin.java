@@ -8,8 +8,6 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 
 import lombok.extern.slf4j.Slf4j;
-import net.runelite.client.account.AccountSession;
-import net.runelite.client.account.SessionManager;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
@@ -31,8 +29,6 @@ public class ScapeGptPlugin extends Plugin {
     @Inject
     private ScapeGptConfig config;
     @Inject
-    private SessionManager sessionManager;
-    @Inject
     private Gson gson;
     @Inject
     private OkHttpClient httpClient;
@@ -45,13 +41,6 @@ public class ScapeGptPlugin extends Plugin {
     protected void startUp() {
         apiUrl = new HttpUrl.Builder().scheme("http").host(HOST).addPathSegments(ENDPOINT).build();
         scapeGptClient = new ScapeGptClient(httpClient.newBuilder().connectTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS).readTimeout(HTTP_TIMEOUT_SECONDS, TimeUnit.SECONDS).build(), apiUrl, gson);
-
-        AccountSession accountSession = sessionManager.getAccountSession();
-        if (accountSession != null) {
-            scapeGptClient.setUuid(accountSession.getUuid());
-        } else {
-            scapeGptClient.setUuid(null);
-        }
 
         panel = injector.getInstance(ScapeGptPanel.class);
         panel.init(scapeGptClient);

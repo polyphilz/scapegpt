@@ -27,7 +27,7 @@ import net.runelite.client.ui.PluginPanel;
 
 @Slf4j
 class ScapeGptPanel extends PluginPanel {
-    private final JLabel promptInputFieldLabel = new JLabel("<html>Ask ScapeGPT anything! Enter text and press <b>Shift+Enter</b> to submit.<br/><br/>Please keep in mind there is a limit of 30 questions per day, and 3 per minute.<br/><br/></html>");
+    private final JLabel promptInputFieldLabel = new JLabel("<html>Ask ScapeGPT anything! Enter text and press <b>Shift+Enter</b> to submit.<br/><br/>Please keep in mind there is a limit of 20 questions per day, and 3 per minute.<br/><br/></html>");
     private final JTextArea promptInputField = new JTextArea();
     private final JTextArea responseArea = new JTextArea();
 

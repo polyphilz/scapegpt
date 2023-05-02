@@ -4,10 +4,7 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 
 import java.io.IOException;
-import java.util.UUID;
 
-import lombok.Setter;
-import net.runelite.http.api.RuneLiteAPI;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
@@ -21,9 +18,6 @@ public class ScapeGptClient {
     private final HttpUrl apiUrl;
     private final Gson gson;
 
-    @Setter
-    private UUID uuid;
-
     public ScapeGptClient(OkHttpClient client, HttpUrl apiUrl, Gson gson) {
         this.client = client;
         this.apiUrl = apiUrl;
@@ -32,9 +26,6 @@ public class ScapeGptClient {
 
     public String getResponse(String prompt) {
         Request.Builder builder = new Request.Builder();
-        if (uuid != null) {
-            builder.header(RuneLiteAPI.RUNELITE_AUTH, uuid.toString());
-        }
 
         JsonObject jsonObject = new JsonObject();
         jsonObject.addProperty("prompt", prompt);
@@ -59,7 +50,7 @@ public class ScapeGptClient {
             String errorMessage = e.getMessage();
             System.err.println("Unexpected error: " + errorMessage);
             if (errorMessage.contains("code=429")) {
-                return "Too many requests! There is a limit of 3 queries per minute, and 30 queries per day.";
+                return "Too many requests! There is a limit of 3 queries per minute, and 20 queries per day.";
             } else {
                 return "An unknown error occurred. Please try again in 1 minute.";
             }
